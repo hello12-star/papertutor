@@ -17,6 +17,7 @@ import {
 } from "@/lib/demo";
 import { saveHistory } from "@/lib/history-db";
 import { historyTitle, type HistoryRecord } from "@/lib/history-core";
+import { createParseControl, type ParseControl } from "@/lib/parse-control";
 import { countPdfPages, formatBytes, sha256Hex } from "@/lib/files";
 import { LlmError } from "@/lib/llm";
 import { verifyModel } from "@/lib/model-check";
@@ -77,7 +78,11 @@ export default function App() {
   const [demoLoadingId, setDemoLoadingId] = useState<string | null>(null);
   const [demoError, setDemoError] = useState<string | null>(null);
   const [demoLoadMs, setDemoLoadMs] = useState<number | null>(null);
+  const [parsing, setParsing] = useState(false);
   const runRef = useRef(0);
+  const lastFileRef = useRef<File | null>(null);
+  const parseControlRef = useRef<ParseControl | null>(null);
+  if (!parseControlRef.current) parseControlRef.current = createParseControl();
 
   const hasKey = Boolean(settings.apiKey.trim());
   const hasMineruToken = Boolean(settings.mineruToken.trim());
@@ -215,6 +220,9 @@ export default function App() {
   };
 
   const resetToLanding = () => {
+    parseControlRef.current?.cancel();
+    lastFileRef.current = null;
+    setParsing(false);
     runRef.current += 1;
     setView("landing");
     setDoc(null);
@@ -329,9 +337,17 @@ export default function App() {
   };
 
   const start = async (file: File) => {
+    const control = parseControlRef.current;
+    if (!control) return;
+    const lease = control.begin();
+    if (!lease) return;
+    lastFileRef.current = file;
+    setParsing(true);
+
     const run = ++runRef.current;
     const stale = () => runRef.current !== run;
 
+    try {
     setError(null);
     setAnalysis(null);
     setStats(null);
@@ -438,6 +454,7 @@ export default function App() {
       const result = await parseWithMineru(file, buffer, {
         mode,
         token: settings.mineruToken,
+        signal: lease.signal,
         onProgress: (progress) => {
           if (stale()) return;
           updatePhase("parse", {
@@ -466,9 +483,40 @@ export default function App() {
       if (stale()) return;
       failWith(mapMineruError(error), "working");
     }
+    } finally {
+      if (control.complete(lease.id)) {
+        setParsing(false);
+      }
+    }
+  };
+
+  const cancelParse = () => {
+    parseControlRef.current?.cancel();
+    runRef.current += 1;
+    lastFileRef.current = null;
+    setParsing(false);
+    setView("landing");
+    setDoc(null);
+    setAnalysis(null);
+    setStats(null);
+    setError(null);
+    setGenerating(false);
+    setCacheHit(false);
+    setDemoLoadMs(null);
+    setPhases(initialPhases());
+    setFileMeta({ name: "", size: 0 });
+  };
+
+  const retryParse = () => {
+    const file = lastFileRef.current;
+    if (!file || parsing) return;
+    void start(file);
   };
 
   const openDemo = async (meta: DemoPaperMeta) => {
+    parseControlRef.current?.cancel();
+    lastFileRef.current = null;
+    setParsing(false);
     const started = performance.now();
     const run = ++runRef.current;
     setDemoLoadingId(meta.id);
@@ -495,6 +543,9 @@ export default function App() {
   };
 
   const openHistory = (record: HistoryRecord) => {
+    parseControlRef.current?.cancel();
+    lastFileRef.current = null;
+    setParsing(false);
     runRef.current += 1;
     setDoc(record.doc);
     setAnalysis(record.analysis);
@@ -590,6 +641,10 @@ export default function App() {
             error={error}
             onOpenSettings={() => setSettingsOpen(true)}
             onBack={resetToLanding}
+            onCancel={cancelParse}
+            onRetry={retryParse}
+            retrying={parsing}
+            canRetry={Boolean(lastFileRef.current)}
           />
         )}
 

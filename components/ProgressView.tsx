@@ -5,8 +5,10 @@ import {
   Circle,
   FileText,
   Loader2,
+  RefreshCw,
   Settings2,
   TriangleAlert,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -21,6 +23,10 @@ type Props = {
   error: AppError | null;
   onOpenSettings: () => void;
   onBack: () => void;
+  onCancel: () => void;
+  onRetry: () => void;
+  retrying: boolean;
+  canRetry: boolean;
 };
 
 const WEIGHTS: Record<string, number> = {
@@ -40,7 +46,18 @@ function percent(phases: Phase[]): number {
   return Math.min(99, Math.round(value));
 }
 
-export function ProgressView({ fileName, fileSize, phases, error, onOpenSettings, onBack }: Props) {
+export function ProgressView({
+  fileName,
+  fileSize,
+  phases,
+  error,
+  onOpenSettings,
+  onBack,
+  onCancel,
+  onRetry,
+  retrying,
+  canRetry,
+}: Props) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -50,19 +67,39 @@ export function ProgressView({ fileName, fileSize, phases, error, onOpenSettings
   }, [error]);
 
   const value = percent(phases);
+  const parsePhase = phases.find((phase) => phase.key === "parse");
+  const canCancel = !error && parsePhase?.status !== "done";
+  const retryable = error
+    ? error.kind === "parse" || error.kind === "network" || error.kind === "limit"
+    : false;
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-14">
       <div className="rounded-2xl border bg-card p-6 shadow-[0_20px_50px_-40px_rgba(29,39,51,0.5)] sm:p-8">
-        <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-          Working
-        </p>
-        <h1 className="font-display mt-2 text-3xl font-semibold tracking-tight break-words">
-          正在把这篇论文重构成学习材料
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          解析和生成都在你的浏览器里直接调用，请不要关闭这个页面。
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+              Working
+            </p>
+            <h1 className="font-display mt-2 text-3xl font-semibold tracking-tight break-words">
+              正在把这篇论文重构成学习材料
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              解析和生成都在你的浏览器里直接调用，请不要关闭这个页面。
+            </p>
+          </div>
+          {canCancel && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onCancel}
+              className="shrink-0 self-start"
+            >
+              <X /> 取消解析
+            </Button>
+          )}
+        </div>
 
         <div className="mt-5 flex items-center gap-3 rounded-xl bg-secondary/60 px-4 py-3">
           <FileText className="size-4 shrink-0 text-primary" />
@@ -130,6 +167,12 @@ export function ProgressView({ fileName, fileSize, phases, error, onOpenSettings
               {error.kind === "need_key" && (
                 <Button size="sm" onClick={onOpenSettings}>
                   <Settings2 /> 打开设置
+                </Button>
+              )}
+              {retryable && canRetry && (
+                <Button size="sm" onClick={onRetry} disabled={retrying}>
+                  <RefreshCw className={cn(retrying && "animate-spin")} />
+                  {retrying ? "重试中…" : "重试"}
                 </Button>
               )}
               <Button size="sm" variant="outline" onClick={onBack}>

@@ -14,12 +14,13 @@
     "preview": "vite preview --host 127.0.0.1",
     "dev:function": "deno run --allow-net=127.0.0.1:8000 dev/function-local.ts",
     "check:function": "deno check functions/index.ts",
-    "test": "node --test tests/server-skeleton.test.mjs tests/help-core.test.mjs tests/export-history.test.mjs tests/demo-papers.test.mjs tests/study-tools.test.mjs tests/budget.test.mjs",
+    "test": "node --test tests/server-skeleton.test.mjs tests/help-core.test.mjs tests/export-history.test.mjs tests/demo-papers.test.mjs tests/study-tools.test.mjs tests/budget.test.mjs tests/parse-control.test.mjs",
     "test:server": "node --test tests/server-skeleton.test.mjs",
     "test:help": "node --test tests/help-core.test.mjs",
     "test:demo": "node --test tests/demo-papers.test.mjs",
     "test:study": "node --test tests/study-tools.test.mjs",
-    "test:budget": "node --test tests/budget.test.mjs"
+    "test:budget": "node --test tests/budget.test.mjs",
+    "test:parse-control": "node --test tests/parse-control.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
