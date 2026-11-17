@@ -1,0 +1,232 @@
+{
+  "320": {
+    "landing": {
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "bad": [],
+      "ok": true,
+      "errors": []
+    },
+    "result": {
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "bad": [],
+      "ok": true,
+      "errors": []
+    },
+    "progress": {
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "bad": [
+        {
+          "tag": "DIV",
+          "cls": "h-full w-full flex-1 bg-primary transition-all",
+          "left": -109,
+          "right": 113
+        }
+      ],
+      "ok": true,
+      "progressText": "第 3/10 页 · 已用 3 秒",
+      "errors": []
+    },
+    "failure": {
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "bad": [
+        {
+          "tag": "DIV",
+          "cls": "h-full w-full flex-1 bg-primary transition-all",
+          "left": -155,
+          "right": 67
+        }
+      ],
+      "ok": true,
+      "retryVisible": true,
+      "errors": []
+    }
+  },
+  "360": {
+    "landing": {
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "bad": [],
+      "ok": true,
+      "errors": []
+    },
+    "result": {
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "bad": [],
+      "ok": true,
+      "errors": []
+    },
+    "progress": {
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "bad": [
+        {
+          "tag": "DIV",
+          "cls": "h-full w-full flex-1 bg-primary transition-all",
+          "left": -137,
+          "right": 125
+        }
+      ],
+      "ok": true,
+      "progressText": "第 3/10 页 · 已用 3 秒",
+      "errors": []
+    },
+    "failure": {
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "bad": [
+        {
+          "tag": "DIV",
+          "cls": "h-full w-full flex-1 bg-primary transition-all",
+          "left": -192,
+          "right": 70
+        }
+      ],
+      "ok": true,
+      "retryVisible": true,
+      "errors": []
+    }
+  },
+  "390": {
+    "landing": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bad": [],
+      "ok": true,
+      "errors": []
+    },
+    "result": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bad": [],
+      "ok": true,
+      "errors": []
+    },
+    "progress": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bad": [
+        {
+          "tag": "DIV",
+          "cls": "h-full w-full flex-1 bg-primary transition-all",
+          "left": -158,
+          "right": 134
+        }
+      ],
+      "ok": true,
+      "progressText": "第 3/10 页 · 已用 3 秒",
+      "errors": []
+    },
+    "failure": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bad": [
+        {
+          "tag": "DIV",
+          "cls": "h-full w-full flex-1 bg-primary transition-all",
+          "left": -220,
+          "right": 72
+        }
+      ],
+      "ok": true,
+      "retryVisible": true,
+      "errors": []
+    }
+  },
+  "414": {
+    "landing": {
+      "scrollWidth": 414,
+      "clientWidth": 414,
+      "bad": [],
+      "ok": true,
+      "errors": []
+    },
+    "result": {
+      "scrollWidth": 414,
+      "clientWidth": 414,
+      "bad": [],
+      "ok": true,
+      "errors": []
+    },
+    "progress": {
+      "scrollWidth": 414,
+      "clientWidth": 414,
+      "bad": [
+        {
+          "tag": "DIV",
+          "cls": "h-full w-full flex-1 bg-primary transition-all",
+          "left": -175,
+          "right": 141
+        }
+      ],
+      "ok": true,
+      "progressText": "第 3/10 页 · 已用 3 秒",
+      "errors": []
+    },
+    "failure": {
+      "scrollWidth": 414,
+      "clientWidth": 414,
+      "bad": [
+        {
+          "tag": "DIV",
+          "cls": "h-full w-full flex-1 bg-primary transition-all",
+          "left": -242,
+          "right": 74
+        }
+      ],
+      "ok": true,
+      "retryVisible": true,
+      "errors": []
+    }
+  },
+  "430": {
+    "landing": {
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "bad": [],
+      "ok": true,
+      "errors": []
+    },
+    "result": {
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "bad": [],
+      "ok": true,
+      "errors": []
+    },
+    "progress": {
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "bad": [
+        {
+          "tag": "DIV",
+          "cls": "h-full w-full flex-1 bg-primary transition-all",
+          "left": -187,
+          "right": 145
+        }
+      ],
+      "ok": true,
+      "progressText": "第 3/10 页 · 已用 3 秒",
+      "errors": []
+    },
+    "failure": {
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "bad": [
+        {
+          "tag": "DIV",
+          "cls": "h-full w-full flex-1 bg-primary transition-all",
+          "left": -256,
+          "right": 76
+        }
+      ],
+      "ok": true,
+      "retryVisible": true,
+      "errors": []
+    }
+  }
+}
