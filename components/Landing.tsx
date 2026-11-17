@@ -219,7 +219,17 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
 
       <section className="mt-10 flex flex-col items-start justify-between gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center">
         <p>不是“AI 替你读完”，而是把读论文的门槛降到你能自己走进去。</p>
-        <p className="font-mono">PaperTutor · Stage 1</p>
+        <div className="flex flex-wrap items-center gap-3">
+          {import.meta.env.DEV && (
+            <a
+              href="/?qa=m1a"
+              className="font-mono text-primary underline underline-offset-2"
+            >
+              QA 夹具：打开引用定位演示
+            </a>
+          )}
+          <p className="font-mono">PaperTutor · Stage 1</p>
+        </div>
       </section>
     </main>
   );

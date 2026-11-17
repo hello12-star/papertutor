@@ -72,6 +72,28 @@ export default function App() {
     window.scrollTo({ top: 0 });
   }, [view]);
 
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (new URLSearchParams(window.location.search).get("qa") !== "m1a") return;
+    let cancelled = false;
+    void (async () => {
+      const mod = await import("../dev/qa-fixture");
+      if (cancelled) return;
+      const { doc: qaDoc, record } = mod.buildQaFixture();
+      const qaStats = verifyCitations(qaDoc.markdown, record.analysis);
+      setDoc(qaDoc);
+      setAnalysis(record.analysis);
+      setStats(qaStats);
+      setError(null);
+      setGenerating(false);
+      setCacheHit(false);
+      setView("result");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const updatePhase = (key: Phase["key"], patch: Partial<Phase>) => {
     setPhases((current) =>
       current.map((phase) => (phase.key === key ? { ...phase, ...patch } : phase)),
