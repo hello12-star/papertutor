@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import {
+  createContext,
+  Fragment,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -36,16 +43,20 @@ import { HelpButton } from "@/components/HelpSystem";
 import {
   buildExportMarkdown,
   buildOutline,
-  buildSelfTestQuestions,
   copyText,
   downloadMarkdown,
+  downloadText,
 } from "@/lib/export";
+import { extractFormulaCards } from "@/lib/formulas";
+import { buildLearningReport, learningReportFileName } from "@/lib/report";
+import { buildSelfTestItems, type SelfTestItem } from "@/lib/self-test";
 import type {
   Analysis,
   AppError,
   Citation,
   CitationStats,
   Experiment,
+  FormulaCard,
   MethodModule,
   ParsedDoc,
   Prerequisite,
@@ -64,6 +75,7 @@ type Props = {
   cacheHit: boolean;
   hasKey: boolean;
   diagnostics: { model: string; baseUrl: string };
+  demoLoadMs?: number | null;
   onRegenerate: () => void;
   onOpenSettings: () => void;
   onBack: () => void;
@@ -96,6 +108,7 @@ export function ResultView({
   cacheHit,
   hasKey,
   diagnostics,
+  demoLoadMs,
   onRegenerate,
   onOpenSettings,
   onBack,
@@ -105,6 +118,21 @@ export function ResultView({
   const [originalOpen, setOriginalOpen] = useState(false);
   const [activeStep, setActiveStep] = useState<StepId>("quickview");
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const [selfTestRevealed, setSelfTestRevealed] = useState<Set<string>>(new Set<string>());
+  const selfTestItems = analysis ? buildSelfTestItems(analysis) : [];
+
+  useEffect(() => {
+    setSelfTestRevealed(new Set<string>());
+  }, [doc.hash]);
+
+  const toggleSelfTest = (id: string) => {
+    setSelfTestRevealed((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const locateCitation = (citation: Citation) => {
     setLocateTarget(citation);
@@ -219,13 +247,34 @@ export function ResultView({
                 {doc.pages} 页
               </Badge>
             )}
-            <Badge variant="secondary" className="font-normal">
-              {doc.mode === "token" ? "MinerU 精准解析" : "MinerU 轻量解析"}
-            </Badge>
+            {doc.mode === "demo" ? (
+              <Badge variant="outline" className="border-primary/30 font-normal text-primary">
+                预生成示例
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="font-normal">
+                {doc.mode === "token" ? "MinerU 精准解析" : "MinerU 轻量解析"}
+              </Badge>
+            )}
+            {doc.mode === "demo" && demoLoadMs != null && (
+              <Badge variant="secondary" className="font-normal">
+                加载 {demoLoadMs} ms
+              </Badge>
+            )}
             {cacheHit && (
               <Badge variant="outline" className="border-primary/30 font-normal text-primary">
                 本地缓存命中
               </Badge>
+            )}
+            {doc.sourceUrl && (
+              <a
+                href={doc.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-primary underline underline-offset-2"
+              >
+                查看 {doc.sourceLabel ?? "arXiv"} 原文 ↗
+              </a>
             )}
             {stats && stats.total > 0 && <CitationSummary stats={stats} />}
           </div>
@@ -236,10 +285,19 @@ export function ResultView({
               深度模式
             </Button>
             <HelpButton helpId="result.deepMode" />
-            <Button variant="outline" size="sm" disabled>
+            <Button variant="outline" size="sm" onClick={() => handleStep("selfTest")}>
               自测
             </Button>
             <HelpButton helpId="result.selfTest" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                document.getElementById("report")?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            >
+              学习报告
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" disabled={!analysis}>
@@ -357,9 +415,22 @@ export function ResultView({
 
           <div className="min-w-0 space-y-14">
             <QuickViewSection quickview={analysis.quickview} />
+            <FormulaCardsSection formulas={analysis.formulas} markdown={doc.markdown} />
             <SkeletonSection skeleton={analysis.skeleton} />
-            <SelfTestSection analysis={analysis} />
-            <RawMarkdown markdown={doc.markdown} />
+            <SelfTestSection
+              items={selfTestItems}
+              revealed={selfTestRevealed}
+              onToggle={toggleSelfTest}
+              onCollapseAll={() => setSelfTestRevealed(new Set<string>())}
+            />
+            <LearningReportSection
+              doc={doc}
+              analysis={analysis}
+              stats={stats}
+              revealedIds={Array.from(selfTestRevealed)}
+              selfTestTotal={selfTestItems.length}
+            />
+            <RawMarkdown markdown={doc.markdown} demo={doc.mode === "demo"} />
           </div>
         </div>
         </LocateContext.Provider>
@@ -376,6 +447,9 @@ export function ResultView({
         title={title}
         markdown={doc.markdown}
         target={locateTarget}
+        sourceUrl={doc.sourceUrl}
+        sourceLabel={doc.sourceLabel}
+        demo={doc.mode === "demo"}
       />
     </main>
   );
@@ -510,7 +584,7 @@ function SectionTitle({
 
 function QuickViewSection({ quickview }: { quickview: QuickView }) {
   return (
-    <section id="quickview" className="scroll-mt-24">
+    <section id="quickview" className="scroll-mt-32">
       <SectionTitle
         index="00"
         eyebrow="Quick view"
@@ -619,6 +693,66 @@ function QuickViewSection({ quickview }: { quickview: QuickView }) {
   );
 }
 
+function FormulaCardsSection({
+  formulas,
+  markdown,
+}: {
+  formulas?: FormulaCard[];
+  markdown: string;
+}) {
+  const cards = formulas?.length ? formulas : extractFormulaCards(markdown);
+  return (
+    <section id="formulas" className="scroll-mt-32">
+      <SectionTitle
+        index="—"
+        eyebrow="Formula cards"
+        title="公式卡"
+        description="把关键公式和它在方法中的用途放在一起；示例为整理结果，真实论文从解析出的 Markdown 中提取。"
+      />
+      {cards.length === 0 ? (
+        <div className="rounded-2xl border bg-card p-5 text-xs leading-5 text-muted-foreground">
+          未在解析文本中识别到独立公式；可以在“读原文”中查看完整解析结果。
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {cards.map((card, index) => (
+            <article
+              key={`${card.name}-${index}`}
+              className="min-w-0 rounded-xl border bg-card p-4"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground">{card.where ?? "原文"}</p>
+                  <h3 className="mt-1 text-sm font-medium break-words">{card.name}</h3>
+                </div>
+                <Badge variant="secondary" className="shrink-0 font-normal">
+                  公式
+                </Badge>
+              </div>
+              <pre className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 font-mono text-[12px] leading-6 break-words whitespace-pre-wrap">
+                {card.formula}
+              </pre>
+              <p className="mt-2 text-xs leading-5 break-words text-muted-foreground">
+                {card.meaning}
+              </p>
+              {card.latex && card.latex !== card.formula && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-[10px] text-muted-foreground">
+                    查看 LaTeX
+                  </summary>
+                  <pre className="mt-1 rounded-md bg-background/70 p-2 font-mono text-[10px] leading-4 break-words whitespace-pre-wrap">
+                    {card.latex}
+                  </pre>
+                </details>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function KeyBlock({ icon, label, text }: { icon: ReactNode; label: string; text: string }) {
   return (
     <div className="p-5">
@@ -661,7 +795,7 @@ function PrerequisiteItem({ item, defaultOpen }: { item: Prerequisite; defaultOp
 
 function SkeletonSection({ skeleton }: { skeleton: Analysis["skeleton"] }) {
   return (
-    <section id="skeleton" className="scroll-mt-24">
+    <section id="skeleton" className="scroll-mt-32">
       <SectionTitle
         index="—"
         eyebrow="Argument map"
@@ -707,6 +841,7 @@ function SkeletonSection({ skeleton }: { skeleton: Analysis["skeleton"] }) {
           </Station>
 
           <Station index="03" id="method" title="方法模块" icon={<Boxes className="size-4" />}>
+            <MethodFlow skeleton={skeleton} />
             <p className="mb-4 text-xs leading-5 text-muted-foreground">
               每个模块只看四件事：输入是什么、输出是什么、要达成什么、怎么交给下一步。
             </p>
@@ -726,16 +861,7 @@ function SkeletonSection({ skeleton }: { skeleton: Analysis["skeleton"] }) {
             <p className="mb-4 text-xs leading-5 text-muted-foreground">
               重点不是记住数字，而是看每个实验到底在支撑哪一条声称。
             </p>
-            <div className="space-y-3">
-              {skeleton.experiments.length === 0 && (
-                <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
-                  模型没有给出实验映射。
-                </p>
-              )}
-              {skeleton.experiments.map((experiment, index) => (
-                <ExperimentCard key={`${experiment.name}-${index}`} experiment={experiment} />
-              ))}
-            </div>
+            <ExperimentTable experiments={skeleton.experiments} />
           </Station>
 
           <Station index="05" id="limitations" title="局限与未解决的问题" icon={<AlertTriangle className="size-4" />}>
@@ -795,7 +921,7 @@ function Station({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="relative scroll-mt-24 pl-12">
+    <section id={id} className="relative scroll-mt-32 pl-12">
       <div className="absolute top-0 left-0 z-10 flex size-8 items-center justify-center rounded-full border bg-card text-primary shadow-xs">
         {icon}
       </div>
@@ -807,6 +933,70 @@ function Station({
         {children}
       </div>
     </section>
+  );
+}
+
+function MethodFlow({ skeleton }: { skeleton: Analysis["skeleton"] }) {
+  const stages = [
+    { label: "问题", detail: skeleton.problem.summary, modules: false },
+    { label: "核心洞察", detail: skeleton.insight.summary, modules: false },
+    { label: "方法模块", detail: "", modules: true },
+    { label: "实验验证", detail: `${skeleton.experiments.length} 个实验映射`, modules: false },
+    {
+      label: "局限",
+      detail: `${skeleton.limitations.stated.length + skeleton.limitations.inferred.length} 条局限`,
+      modules: false,
+    },
+  ];
+
+  return (
+    <div className="mb-5 rounded-xl border bg-secondary/30 p-4">
+      <div className="flex items-center gap-2 text-xs font-medium">
+        <ListTree className="size-3.5 text-primary" />
+        方法流程图：从问题到验证
+      </div>
+      <div className="mt-3 flex flex-col gap-2 lg:flex-row lg:items-stretch">
+        {stages.map((stage, index) => (
+          <Fragment key={stage.label}>
+            <div className="min-w-0 flex-1 rounded-lg border bg-card p-3">
+              <div className="flex items-center gap-2">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[9px] text-primary">
+                  {index + 1}
+                </span>
+                <p className="text-xs font-medium break-words">{stage.label}</p>
+              </div>
+              {stage.modules ? (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {skeleton.modules.map((module, moduleIndex) => (
+                    <span
+                      key={`${module.name}-${moduleIndex}`}
+                      className="rounded-full bg-secondary/70 px-1.5 py-0.5 text-[10px] leading-4 break-words text-muted-foreground"
+                    >
+                      M{moduleIndex + 1} {module.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-1 line-clamp-3 text-[11px] leading-5 break-words text-muted-foreground">
+                  {stage.detail || "未说明"}
+                </p>
+              )}
+            </div>
+            {index < stages.length - 1 && (
+              <div
+                className="flex shrink-0 items-center justify-center text-primary/50"
+                aria-hidden
+              >
+                <ArrowRight className="size-4 rotate-90 lg:rotate-0" />
+              </div>
+            )}
+          </Fragment>
+        ))}
+      </div>
+      <p className="mt-2 text-[10px] text-muted-foreground">
+        按论文的论证顺序排列；箭头表示推进关系，不代表严格的计算图。
+      </p>
+    </div>
   );
 }
 
@@ -844,37 +1034,69 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ExperimentCard({ experiment }: { experiment: Experiment }) {
+function ExperimentTable({ experiments }: { experiments: Experiment[] }) {
+  if (experiments.length === 0) {
+    return (
+      <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+        模型没有给出实验映射。
+      </p>
+    );
+  }
+  return (
+    <div className="overflow-hidden rounded-xl border bg-background/60">
+      <div className="hidden grid-cols-[1.05fr_1fr_1.25fr_0.55fr] gap-3 border-b bg-secondary/50 px-4 py-2 text-[10px] font-medium tracking-wide text-muted-foreground uppercase md:grid">
+        <span>实验</span>
+        <span>对应声称</span>
+        <span>实际发现</span>
+        <span>判定</span>
+      </div>
+      <div className="divide-y">
+        {experiments.map((experiment, index) => (
+          <div key={`${experiment.name}-${index}`} className="min-w-0 px-4 py-3">
+            <div className="grid gap-2 md:grid-cols-[1.05fr_1fr_1.25fr_0.55fr] md:gap-3">
+              <Cell label="实验">
+                <p className="text-[13px] font-medium break-words">{experiment.name}</p>
+              </Cell>
+              <Cell label="对应声称">
+                <p className="text-xs leading-5 break-words">{experiment.claim || "未说明"}</p>
+              </Cell>
+              <Cell label="实际发现">
+                <p className="text-xs leading-5 break-words">{experiment.finding || "未说明"}</p>
+              </Cell>
+              <Cell label="判定">
+                <VerdictBadge verdict={experiment.verdict} />
+              </Cell>
+            </div>
+            <Citations citations={experiment.citations} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Cell({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="mb-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase md:hidden">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+function VerdictBadge({ verdict }: { verdict: Experiment["verdict"] }) {
   const badge =
-    experiment.verdict === "supports"
+    verdict === "supports"
       ? { label: "直接支持", className: "border-primary/30 text-primary" }
-      : experiment.verdict === "partial"
+      : verdict === "partial"
         ? { label: "部分支持", className: "border-amber-500/40 text-amber-700" }
         : { label: "未直接覆盖", className: "border-destructive/30 text-destructive" };
   return (
-    <div className="min-w-0 rounded-xl border bg-background/60 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium">{experiment.name}</p>
-        <Badge variant="outline" className={cn("font-normal", badge.className)}>
-          {badge.label}
-        </Badge>
-      </div>
-      <div className="mt-3 space-y-2 text-[13px] leading-6">
-        <p>
-          <span className="mr-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-            对应声称
-          </span>
-          {experiment.claim || "未说明"}
-        </p>
-        <p>
-          <span className="mr-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-            实际发现
-          </span>
-          {experiment.finding || "未说明"}
-        </p>
-      </div>
-      <Citations citations={experiment.citations} />
-    </div>
+    <Badge variant="outline" className={cn("font-normal", badge.className)}>
+      {badge.label}
+    </Badge>
   );
 }
 
@@ -943,16 +1165,28 @@ function CitationChip({ citation }: { citation: Citation }) {
   );
 }
 
-function RawMarkdown({ markdown, hidden }: { markdown: string; hidden?: boolean }) {
+function RawMarkdown({
+  markdown,
+  hidden,
+  demo,
+}: {
+  markdown: string;
+  hidden?: boolean;
+  demo?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   if (hidden) return null;
   return (
-    <section id="raw" className="scroll-mt-24">
+    <section id="raw" className="scroll-mt-32">
       <SectionTitle
         index="—"
         eyebrow="Source"
-        title="解析出的 Markdown"
-        description="这是 MinerU 从 PDF 还原出的结构化文本，所有引用都在这里做逐条比对。"
+        title={demo ? "示例引用节选" : "解析出的 Markdown"}
+        description={
+          demo
+            ? "示例只保留引用校验所需的原文片段，不包含论文全文；完整论文请通过上方 arXiv 链接查看。"
+            : "这是 MinerU 从 PDF 还原出的结构化文本，所有引用都在这里做逐条比对。"
+        }
         helpId="result.original"
       />
       <div className="rounded-2xl border bg-card">
@@ -1036,32 +1270,159 @@ function StepNav({
   );
 }
 
-function SelfTestSection({ analysis }: { analysis: Analysis }) {
-  const questions = buildSelfTestQuestions(analysis);
+function SelfTestSection({
+  items,
+  revealed,
+  onToggle,
+  onCollapseAll,
+}: {
+  items: SelfTestItem[];
+  revealed: Set<string>;
+  onToggle: (id: string) => void;
+  onCollapseAll: () => void;
+}) {
   return (
-    <section id="selfTest" className="scroll-mt-24">
+    <section id="selfTest" className="scroll-mt-32">
       <SectionTitle
         index="—"
         eyebrow="Self test"
         title="自测题"
-        description="根据论证骨架生成；交互答题即将上线。"
+        description="先自己回答，再展开参考答案；答案和引用都来自这篇论文的结构化结果。"
         helpId="result.selfTest"
       />
       <div className="rounded-2xl border bg-card p-5">
-        <ol className="space-y-3">
-          {questions.map((question, index) => (
-            <li key={index} className="flex gap-3 text-sm leading-6">
-              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[10px] text-primary">
-                {index + 1}
-              </span>
-              <span className="break-words">{question}</span>
-            </li>
-          ))}
-        </ol>
-        <p className="mt-4 text-xs leading-5 text-muted-foreground">
-          当前可在导出 Markdown 中带走这些问题；交互答题会在后续版本加入。
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            共 {items.length} 题 · 已展开 {revealed.size} 题
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onCollapseAll}
+            disabled={revealed.size === 0}
+          >
+            全部收起
+          </Button>
+        </div>
+        <div className="mt-4 space-y-3">
+          {items.map((item, index) => {
+            const open = revealed.has(item.id);
+            return (
+              <div key={item.id} className="min-w-0 rounded-xl border bg-background/60 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[10px] text-primary">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm leading-6 break-words">{item.question}</p>
+                    <button
+                      type="button"
+                      onClick={() => onToggle(item.id)}
+                      aria-expanded={open}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    >
+                      {open ? "收起参考答案" : "展开参考答案"}
+                      <ChevronDown
+                        className={cn("size-3.5 transition-transform", open && "rotate-180")}
+                      />
+                    </button>
+                    {open && (
+                      <div className="mt-3 rounded-lg bg-secondary/50 p-3 text-xs leading-6 break-words whitespace-pre-wrap">
+                        {item.answer || "未生成参考答案"}
+                      </div>
+                    )}
+                    {open && item.citations.length > 0 && (
+                      <Citations citations={item.citations} />
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
+  );
+}
+
+function LearningReportSection({
+  doc,
+  analysis,
+  stats,
+  revealedIds,
+  selfTestTotal,
+}: {
+  doc: ParsedDoc;
+  analysis: Analysis;
+  stats: CitationStats | null;
+  revealedIds: string[];
+  selfTestTotal: number;
+}) {
+  const [notice, setNotice] = useState<string | null>(null);
+  const report = buildLearningReport({
+    doc,
+    analysis,
+    stats,
+    selfTest: { revealedIds, total: selfTestTotal },
+  });
+
+  const flash = (message: string) => {
+    setNotice(message);
+    window.setTimeout(() => setNotice(null), 2500);
+  };
+
+  const download = () => {
+    downloadText(learningReportFileName(doc, analysis), report);
+    flash("学习报告已开始下载");
+  };
+
+  const copy = async () => {
+    const ok = await copyText(report);
+    flash(ok ? "学习报告已复制" : "复制失败，请改用下载");
+  };
+
+  return (
+    <section id="report" className="scroll-mt-32">
+      <SectionTitle
+        index="—"
+        eyebrow="Learning report"
+        title="学习报告"
+        description="根据当前页面的速览、引用校验和自测展开进度生成；不会调用模型。"
+      />
+      <div className="rounded-2xl border bg-card p-5 sm:p-6">
+        <div className="grid gap-3 sm:grid-cols-4">
+          <Metric label="引用校验" value={stats ? `${stats.verified}/${stats.total}` : "—"} />
+          <Metric label="自测展开" value={`${revealedIds.length}/${selfTestTotal}`} />
+          <Metric label="方法模块" value={String(analysis.skeleton.modules.length)} />
+          <Metric label="实验映射" value={String(analysis.skeleton.experiments.length)} />
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={download}>
+            <Download /> 下载学习报告
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => void copy()}>
+            <Copy /> 复制报告
+          </Button>
+          {notice && <span className="text-[11px] text-primary">{notice}</span>}
+        </div>
+        <details className="mt-4">
+          <summary className="cursor-pointer text-xs text-muted-foreground">预览报告内容</summary>
+          <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-secondary/50 p-3 font-mono text-[10px] leading-5 break-words whitespace-pre-wrap">
+            {report}
+          </pre>
+        </details>
+      </div>
+    </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-secondary/50 px-3 py-2">
+      <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+        {label}
+      </p>
+      <p className="mt-1 font-mono text-sm text-foreground">{value}</p>
+    </div>
   );
 }

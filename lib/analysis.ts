@@ -1,4 +1,4 @@
-import { chatJson, LlmError } from "./llm";
+import { chatJson, LlmError } from "./llm.ts";
 import type { Settings } from "./settings";
 import type {
   Analysis,

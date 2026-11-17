@@ -1,3 +1,4 @@
+import { guardAnalysisBudget, serviceEnabled } from "./budget.ts";
 import { readEnv, serverModeEnabled } from "./providers/env.ts";
 import { ProviderError } from "./providers/errors.ts";
 import { getLlmProvider, getParserProvider, promptVersion } from "./providers/index.ts";
@@ -194,6 +195,11 @@ async function handleAnalyze(request: Request): Promise<Response> {
   const doc = docs.get(docId);
   if (!doc) throw new ApiError("DOC_NOT_FOUND", "找不到这个 docId", 404);
 
+  const budget = guardAnalysisBudget();
+  if (!budget.ok) {
+    return json({ ok: false, code: budget.code, message: budget.message }, budget.status);
+  }
+
   const provider = getLlmProvider();
   const version = promptVersion();
   const result = await provider.complete({
@@ -273,6 +279,17 @@ export async function handleServerApi(
         message: "SERVER_MODE=false，服务端 API 未启用；现有 BYOK / MinerU 路径不受影响。",
       },
       404,
+    );
+  }
+
+  if (!serviceEnabled()) {
+    return json(
+      {
+        ok: false,
+        code: "SERVICE_DISABLED",
+        message: "服务暂时关闭（SERVICE_ENABLED=false）。",
+      },
+      503,
     );
   }
 

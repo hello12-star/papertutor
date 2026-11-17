@@ -14,9 +14,21 @@ type Props = {
   title: string;
   markdown: string;
   target: Target | null;
+  sourceUrl?: string;
+  sourceLabel?: string;
+  demo?: boolean;
 };
 
-export function OriginalSheet({ open, onOpenChange, title, markdown, target }: Props) {
+export function OriginalSheet({
+  open,
+  onOpenChange,
+  title,
+  markdown,
+  target,
+  sourceUrl,
+  sourceLabel,
+  demo,
+}: Props) {
   const range = useMemo(
     () => (target ? findQuoteRange(markdown, target.quote) : null),
     [markdown, target],
@@ -47,9 +59,25 @@ export function OriginalSheet({ open, onOpenChange, title, markdown, target }: P
           <SheetTitle className="font-display text-lg">原文定位</SheetTitle>
           <SheetDescription className="line-clamp-2 break-words text-xs">
             {target?.section ? `§${target.section} · ` : ""}
-            {title} · 基于解析出的 Markdown 定位
+            {title} · {demo ? "示例引用节选" : "基于解析出的 Markdown 定位"}
           </SheetDescription>
         </SheetHeader>
+
+        {demo && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-primary/20 bg-primary/[0.04] px-5 py-2 text-[11px] leading-5 text-primary">
+            <span>示例只展示引用片段，不含论文全文。</span>
+            {sourceUrl && (
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2"
+              >
+                在 {sourceLabel ?? "arXiv"} 查看完整论文 ↗
+              </a>
+            )}
+          </div>
+        )}
 
         {target && !range && (
           <div className="shrink-0 border-b border-amber-500/30 bg-amber-50 px-5 py-3 text-xs leading-5 text-amber-900">

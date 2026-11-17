@@ -67,9 +67,18 @@ export type Skeleton = {
   };
 };
 
+export type FormulaCard = {
+  name: string;
+  formula: string;
+  latex?: string;
+  meaning: string;
+  where?: string;
+};
+
 export type Analysis = {
   quickview: QuickView;
   skeleton: Skeleton;
+  formulas?: FormulaCard[];
 };
 
 export type ParsedDoc = {
@@ -77,9 +86,11 @@ export type ParsedDoc = {
   fileName: string;
   fileSize: number;
   pages: number | null;
-  mode: "flash" | "token";
+  mode: "flash" | "token" | "demo";
   markdown: string;
   parsedAt: number;
+  sourceUrl?: string;
+  sourceLabel?: string;
 };
 
 export type AnalysisRecord = {

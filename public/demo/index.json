@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "papers": [
+    {
+      "id": "attention",
+      "title": "Attention Is All You Need",
+      "authors": "Ashish Vaswani, Noam Shazeer, Niki Parmar 等",
+      "venue": "NeurIPS",
+      "year": "2017",
+      "arxivId": "1706.03762",
+      "sourceUrl": "https://arxiv.org/abs/1706.03762",
+      "pages": 15,
+      "blurb": "Transformer 的原始论文：完全用注意力替代循环和卷积。",
+      "tags": [
+        "Transformer",
+        "自注意力",
+        "机器翻译"
+      ],
+      "file": "attention.json"
+    },
+    {
+      "id": "resnet",
+      "title": "Deep Residual Learning for Image Recognition",
+      "authors": "Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun",
+      "venue": "CVPR",
+      "year": "2016",
+      "arxivId": "1512.03385",
+      "sourceUrl": "https://arxiv.org/abs/1512.03385",
+      "pages": 12,
+      "blurb": "残差学习的代表作：用 shortcut 让极深网络更容易训练。",
+      "tags": [
+        "ResNet",
+        "残差学习",
+        "图像分类"
+      ],
+      "file": "resnet.json"
+    },
+    {
+      "id": "lora",
+      "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+      "authors": "Edward J. Hu, Yelong Shen, Phillip Wallis 等",
+      "venue": "ICLR",
+      "year": "2022",
+      "arxivId": "2106.09685",
+      "sourceUrl": "https://arxiv.org/abs/2106.09685",
+      "pages": 19,
+      "blurb": "参数高效微调：冻结大模型权重，只训练低秩增量。",
+      "tags": [
+        "LoRA",
+        "参数高效微调",
+        "大语言模型"
+      ],
+      "file": "lora.json"
+    }
+  ]
+}

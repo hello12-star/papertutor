@@ -60,22 +60,22 @@ type BatchState = {
   total: number;
 };
 
-const SAMPLE_PAPER = `# Sparse Attention for Long Documents
+const MODEL_CHECK_SAMPLE = `# A Tiny CNN for Image Classification
 
 ## Abstract
-We study how sparse attention reduces compute for long-document classification. We propose a block-sparse attention layer that selects the top-k blocks per query. On three benchmarks, it matches dense attention while using 38% less compute.
+We test whether a compact convolutional network can match a linear baseline on a small image classification benchmark. The model uses three convolutional blocks and global average pooling.
 
 ## 1 Introduction
-Transformer attention scales quadratically with sequence length. Long documents therefore require approximations. Prior work uses fixed patterns or low-rank projections, but these can miss long-range evidence.
+Small datasets are common in classroom projects, but large vision models are expensive to train. We ask whether a compact CNN is sufficient for a controlled benchmark.
 
 ## 2 Method
-Our layer partitions the sequence into blocks of 64 tokens. A lightweight scorer ranks blocks for each query block, and attention is computed only over the top-8 blocks. The scorer is trained jointly with the main model.
+The network stacks three 3x3 convolution blocks with batch normalization and ReLU, followed by global average pooling and a linear classifier. We train with cross-entropy and Adam for 20 epochs.
 
 ## 3 Experiments
-We evaluate on three document classification datasets. The proposed layer matches dense attention within 0.4 accuracy points while reducing FLOPs by 38%. Ablations show that top-8 blocks are sufficient; top-4 degrades accuracy by 1.2 points.
+On a held-out split, the compact CNN reaches 82% accuracy, compared with 74% for the linear baseline. An ablation without batch normalization drops to 68%.
 
 ## 4 Limitations
-The scorer adds a small overhead for short sequences, and the block size must be tuned per dataset.`;
+The benchmark is small and single-domain, so the result does not establish generalization to larger datasets.`;
 
 export function SettingsDialog({ open, onOpenChange, settings, onSave, onClearCache }: Props) {
   const [draft, setDraft] = useState<Settings>(settings);
@@ -358,7 +358,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onSave, onClearCa
     setDeep({ status: "testing" });
     const started = performance.now();
     try {
-      await generateQuickview(SAMPLE_PAPER, draft);
+      await generateQuickview(MODEL_CHECK_SAMPLE, draft);
       const check: ModelCheck = {
         state: "ok",
         message: "深度生成通过",

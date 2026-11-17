@@ -9,6 +9,12 @@ import { SettingsDialog } from "@/components/SettingsDialog";
 import { generateQuickview, generateSkeleton, assembleAnalysis, verifyCitations } from "@/lib/analysis";
 import { cacheAnalysis, cacheDoc, clearCache, getCachedAnalysis, getCachedDoc } from "@/lib/cache";
 import { clearHelpCache } from "@/lib/help-cache";
+import {
+  loadDemoIndex,
+  loadDemoPaper,
+  prefetchDemoPapers,
+  type DemoPaperMeta,
+} from "@/lib/demo";
 import { saveHistory } from "@/lib/history-db";
 import { historyTitle, type HistoryRecord } from "@/lib/history-core";
 import { countPdfPages, formatBytes, sha256Hex } from "@/lib/files";
@@ -67,6 +73,10 @@ export default function App() {
   const [generating, setGenerating] = useState(false);
   const [cacheHit, setCacheHit] = useState(false);
   const [fileMeta, setFileMeta] = useState({ name: "", size: 0 });
+  const [demoPapers, setDemoPapers] = useState<DemoPaperMeta[]>([]);
+  const [demoLoadingId, setDemoLoadingId] = useState<string | null>(null);
+  const [demoError, setDemoError] = useState<string | null>(null);
+  const [demoLoadMs, setDemoLoadMs] = useState<number | null>(null);
   const runRef = useRef(0);
 
   const hasKey = Boolean(settings.apiKey.trim());
@@ -75,6 +85,20 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [view]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadDemoIndex(controller.signal)
+      .then((papers) => {
+        setDemoPapers(papers);
+        prefetchDemoPapers(papers);
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setDemoError(error instanceof Error ? error.message : String(error));
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (!doc || !analysis) return;
@@ -161,6 +185,7 @@ export default function App() {
         setError(null);
         setGenerating(false);
         setCacheHit(false);
+        setDemoLoadMs(null);
         setView("result");
       } catch (error) {
         if (cancelled) return;
@@ -198,6 +223,7 @@ export default function App() {
     setError(null);
     setGenerating(false);
     setCacheHit(false);
+    setDemoLoadMs(null);
     setPhases(initialPhases());
   };
 
@@ -312,6 +338,7 @@ export default function App() {
     setDoc(null);
     setGenerating(false);
     setCacheHit(false);
+    setDemoLoadMs(null);
     setPhases(initialPhases());
     setFileMeta({ name: file.name, size: file.size });
     setView("working");
@@ -441,6 +468,32 @@ export default function App() {
     }
   };
 
+  const openDemo = async (meta: DemoPaperMeta) => {
+    const started = performance.now();
+    const run = ++runRef.current;
+    setDemoLoadingId(meta.id);
+    setDemoError(null);
+    try {
+      const paper = await loadDemoPaper(meta);
+      if (runRef.current !== run) return;
+      const citationStats = verifyCitations(paper.doc.markdown, paper.analysis);
+      setDoc(paper.doc);
+      setAnalysis(paper.analysis);
+      setStats(citationStats);
+      setError(null);
+      setGenerating(false);
+      setCacheHit(false);
+      setDemoLoadMs(Math.round(performance.now() - started));
+      setView("result");
+    } catch (error) {
+      if (runRef.current === run) {
+        setDemoError(error instanceof Error ? error.message : String(error));
+      }
+    } finally {
+      if (runRef.current === run) setDemoLoadingId(null);
+    }
+  };
+
   const openHistory = (record: HistoryRecord) => {
     runRef.current += 1;
     setDoc(record.doc);
@@ -449,6 +502,7 @@ export default function App() {
     setError(null);
     setGenerating(false);
     setCacheHit(false);
+    setDemoLoadMs(null);
     setView("result");
   };
 
@@ -518,6 +572,10 @@ export default function App() {
               onFile={(file) => void start(file)}
               onOpenSettings={() => setSettingsOpen(true)}
               onOpenHistory={openHistory}
+              demoPapers={demoPapers}
+              demoLoadingId={demoLoadingId}
+              demoError={demoError}
+              onOpenDemo={(paper) => void openDemo(paper)}
               hasKey={hasKey}
               hasMineruToken={hasMineruToken}
             />
@@ -546,6 +604,7 @@ export default function App() {
               cacheHit={cacheHit}
               hasKey={hasKey}
               diagnostics={{ model: settings.model, baseUrl: settings.baseUrl }}
+              demoLoadMs={demoLoadMs}
               onRegenerate={regenerate}
               onOpenSettings={() => setSettingsOpen(true)}
               onBack={resetToLanding}

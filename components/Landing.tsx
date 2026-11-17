@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HelpButton } from "@/components/HelpSystem";
 import { RecentHistory } from "@/components/RecentHistory";
+import type { DemoPaperMeta } from "@/lib/demo";
 import type { HistoryRecord } from "@/lib/history-core";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,10 @@ type Props = {
   onFile: (file: File) => void;
   onOpenSettings: () => void;
   onOpenHistory: (record: HistoryRecord) => void;
+  demoPapers: DemoPaperMeta[];
+  demoLoadingId: string | null;
+  demoError: string | null;
+  onOpenDemo: (paper: DemoPaperMeta) => void;
   hasKey: boolean;
   hasMineruToken: boolean;
 };
@@ -50,6 +55,10 @@ export function Landing({
   onFile,
   onOpenSettings,
   onOpenHistory,
+  demoPapers,
+  demoLoadingId,
+  demoError,
+  onOpenDemo,
   hasKey,
   hasMineruToken,
 }: Props) {
@@ -179,11 +188,12 @@ export function Landing({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (import.meta.env.DEV) window.location.href = "/?qa=m1a";
+                  const first = demoPapers[0];
+                  if (first) onOpenDemo(first);
                 }}
-                disabled={!import.meta.env.DEV}
+                disabled={demoPapers.length === 0 || Boolean(demoLoadingId)}
               >
-                示例论文
+                {demoLoadingId ? "加载中…" : "示例论文"}
               </Button>
               <HelpButton helpId="landing.samplePaper" />
             </div>
@@ -240,6 +250,48 @@ export function Landing({
         </section>
       </div>
 
+      <section className="mt-12" aria-labelledby="demo-heading">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+              Demo papers
+            </p>
+            <h2
+              id="demo-heading"
+              className="font-display mt-1 text-2xl font-semibold tracking-tight"
+            >
+              没有 Key，也能先读 3 篇经典论文
+            </h2>
+            <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
+              预生成结果，点击即读；不要求配置任何模型 Key。
+            </p>
+          </div>
+          <HelpButton helpId="landing.samplePaper" />
+        </div>
+
+        {demoError && (
+          <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            示例加载失败：{demoError}
+          </p>
+        )}
+
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {demoPapers.length === 0
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-44 animate-pulse rounded-xl border bg-card" />
+              ))
+            : demoPapers.map((paper) => (
+                <DemoPaperCard
+                  key={paper.id}
+                  paper={paper}
+                  loading={demoLoadingId === paper.id}
+                  disabled={Boolean(demoLoadingId)}
+                  onOpen={onOpenDemo}
+                />
+              ))}
+        </div>
+      </section>
+
       <section className="mt-16 grid gap-4 border-t pt-8 sm:grid-cols-3">
         {STEPS.map((step) => (
           <div key={step.index} className="rounded-xl border bg-card/70 p-5">
@@ -278,5 +330,54 @@ export function Landing({
         </div>
       </section>
     </main>
+  );
+}
+
+function DemoPaperCard({
+  paper,
+  loading,
+  disabled,
+  onOpen,
+}: {
+  paper: DemoPaperMeta;
+  loading: boolean;
+  disabled: boolean;
+  onOpen: (paper: DemoPaperMeta) => void;
+}) {
+  return (
+    <article className="flex min-w-0 flex-col rounded-xl border bg-card p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[10px] tracking-wide text-muted-foreground uppercase">
+            {paper.venue} · {paper.year}
+          </p>
+          <h3 className="mt-1 text-sm font-medium leading-5 break-words">{paper.title}</h3>
+        </div>
+        <Badge variant="outline" className="shrink-0 border-primary/30 font-normal text-primary">
+          示例
+        </Badge>
+      </div>
+      <p className="mt-2 text-xs leading-5 break-words text-muted-foreground">{paper.blurb}</p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {paper.tags.slice(0, 3).map((tag) => (
+          <Badge key={tag} variant="secondary" className="font-normal">
+            {tag}
+          </Badge>
+        ))}
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-2 pt-4">
+        <span className="text-[10px] text-muted-foreground">预生成 · 无需 Key</span>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => onOpen(paper)}
+          disabled={disabled}
+        >
+          {loading ? "加载中…" : "打开示例"}
+          {!loading && <ArrowRight />}
+        </Button>
+      </div>
+    </article>
   );
 }

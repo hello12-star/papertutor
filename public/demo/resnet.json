@@ -1,0 +1,270 @@
+{
+  "version": 1,
+  "reviewStatus": "approved",
+  "meta": {
+    "id": "resnet",
+    "title": "Deep Residual Learning for Image Recognition",
+    "authors": "Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun",
+    "venue": "CVPR",
+    "year": "2016",
+    "arxivId": "1512.03385",
+    "sourceUrl": "https://arxiv.org/abs/1512.03385",
+    "pages": 12,
+    "blurb": "残差学习的代表作：用 shortcut 让极深网络更容易训练。",
+    "tags": [
+      "ResNet",
+      "残差学习",
+      "图像分类"
+    ],
+    "file": "resnet.json"
+  },
+  "doc": {
+    "hash": "demo-resnet-v1",
+    "fileName": "Deep Residual Learning for Image Recognition.pdf",
+    "fileSize": 0,
+    "pages": 12,
+    "mode": "demo",
+    "markdown": "# Deep Residual Learning for Image Recognition\n\n> 示例节选：仅保留引用校验所需的原文片段；完整论文见 arXiv:1512.03385。\n\n## Abstract\n\nDeeper neural networks are more difficult to train. We present a residual learning framework to ease the training of networks that are substantially deeper than those used previously. We explicitly reformulate the layers as learning residual functions with reference to the layer inputs, instead of learning unreferenced functions. We provide comprehensive empirical evidence showing that these residual networks are easier to optimize, and can gain accuracy from considerably increased depth. On the ImageNet dataset we evaluate residual nets with a depth of up to 152 layers—8x deeper than VGG nets but still having lower complexity. An ensemble of these residual nets achieves 3.57% error on the ImageNet test set. This result won the 1st place on the ILSVRC 2015 classification task. We also present analysis on CIFAR-10 with 100 and 1000 layers. The depth of representations is of central importance for many visual recognition tasks. Solely due to our extremely deep representations, we obtain a 28% relative improvement on the COCO object detection dataset. Deep residual nets are foundations of our submissions to ILSVRC & COCO 2015 competitions, where we also won the 1st places on the tasks of ImageNet detection, ImageNet localization, COCO detection, and COCO segmentation.\n\n## 1 Introduction\n\nWhen deeper networks are able to start converging, a degradation problem has been exposed: with the network depth increasing, accuracy gets saturated (which might be unsurprising) and then degrades rapidly.\n\nUnexpectedly, such degradation is not caused by overfitting, and adding more layers to a suitably deep model leads to higher training error.\n\n## 3 Deep Residual Learning\n\nIn this paper, we address the degradation problem by introducing a deep residual learning framework.\n\nInstead of hoping each few stacked layers directly fit a desired underlying mapping, we explicitly let these layers fit a residual mapping.\n\nFormally, in this paper we consider a building block defined as: y = F(x, {W_i}) + x.\n\nThe formulation of F(x) + x can be realized by feedforward neural networks with \"shortcut connections\".\n\nTo the extreme, if an identity mapping were optimal, it would be easier to push the residual to zero than to fit an identity mapping by a stack of nonlinear layers.\n\nThere exists a solution by construction to the deeper model: the added layers are identity mapping, and the other layers are copied from the learned shallower model.\n",
+    "parsedAt": 0,
+    "sourceUrl": "https://arxiv.org/abs/1512.03385",
+    "sourceLabel": "arXiv:1512.03385"
+  },
+  "analysis": {
+    "quickview": {
+      "meta": {
+        "title": "Deep Residual Learning for Image Recognition",
+        "authors": "Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun",
+        "venue": "CVPR",
+        "year": "2016"
+      },
+      "coreQuestion": "为什么网络越深反而越难训练？如何让很深的网络更容易优化并取得更高精度？",
+      "coreContribution": "提出残差学习框架：让堆叠层学习残差映射 F(x)=H(x)-x，并用 shortcut 实现 F(x)+x；152 层 ResNet 在 ImageNet 上取得 3.57% top-5 error 并赢得 ILSVRC 2015。",
+      "methodSummary": "把目标映射改写为残差映射，加入恒等 shortcut；在 ImageNet/CIFAR-10 上系统比较 plain 网络与 residual 网络，并验证深度带来的收益。",
+      "prerequisites": [
+        {
+          "term": "卷积神经网络",
+          "english": "CNN",
+          "why": "残差块由卷积层堆叠而成，理解卷积才能看懂 block 结构。",
+          "suggest": "复习卷积、池化、感受野。"
+        },
+        {
+          "term": "反向传播",
+          "english": "backpropagation",
+          "why": "退化问题体现在训练误差，需要理解梯度如何传播。",
+          "suggest": "复习链式法则和梯度消失。"
+        },
+        {
+          "term": "批归一化",
+          "english": "BatchNorm",
+          "why": "ResNet 训练依赖 BN 稳定深层网络。",
+          "suggest": "了解 BN 的作用和插入位置。"
+        },
+        {
+          "term": "残差连接",
+          "english": "shortcut connection",
+          "why": "论文的核心结构，输入直接加到输出。",
+          "suggest": "先看图 2 的残差块。"
+        },
+        {
+          "term": "ImageNet 指标",
+          "english": "top-1 / top-5 error",
+          "why": "实验用 top-5 error 比较模型。",
+          "suggest": "了解 ILSVRC 分类评测口径。"
+        },
+        {
+          "term": "退化问题",
+          "english": "degradation",
+          "why": "深层网络训练误差反而上升，这不是过拟合。",
+          "suggest": "先读 1 Introduction 的退化现象。"
+        }
+      ],
+      "readingPath": {
+        "first": [
+          "2 Related Work",
+          "3 Deep Residual Learning（3.1/3.2）",
+          "4.1 ImageNet Classification",
+          "4.2 CIFAR-10"
+        ],
+        "keyFigure": "图 2：残差块；重点看 F(x)+x 的 shortcut 如何绕过堆叠层。",
+        "skip": [
+          "4.3/4.4 目标检测与分割的细节",
+          "附录中的网络结构表"
+        ]
+      }
+    },
+    "skeleton": {
+      "problem": {
+        "summary": "深层网络出现退化：层数增加后训练误差反而上升，这不是过拟合造成的；作者要解决的是深度带来的优化困难。",
+        "limitations": [
+          "plain 深层网络难以优化，训练误差随深度增加而上升。",
+          "恒等映射在非线性堆叠层中并不容易学出来。",
+          "当时常用的初始化/归一化手段不足以让很深的 plain 网络稳定收敛。"
+        ],
+        "importance": "视觉识别受益于更深表示；如果能把深度转化为精度，就能统一提升分类、检测、分割等任务。",
+        "citations": [
+          {
+            "section": "Abstract",
+            "quote": "Deeper neural networks are more difficult to train."
+          },
+          {
+            "section": "1 Introduction",
+            "quote": "When deeper networks are able to start converging, a degradation problem has been exposed: with the network depth increasing, accuracy gets saturated (which might be unsurprising) and then degrades rapidly."
+          },
+          {
+            "section": "1 Introduction",
+            "quote": "Unexpectedly, such degradation is not caused by overfitting, and adding more layers to a suitably deep model leads to higher training error."
+          }
+        ]
+      },
+      "insight": {
+        "summary": "与其让堆叠层直接拟合目标映射 H(x)，不如让它们拟合残差 F(x)=H(x)-x；如果恒等映射最优，把残差压到零比学一个恒等映射更容易。",
+        "citations": [
+          {
+            "section": "3 Deep Residual Learning",
+            "quote": "Instead of hoping each few stacked layers directly fit a desired underlying mapping, we explicitly let these layers fit a residual mapping."
+          },
+          {
+            "section": "3 Deep Residual Learning",
+            "quote": "There exists a solution by construction to the deeper model: the added layers are identity mapping, and the other layers are copied from the learned shallower model."
+          },
+          {
+            "section": "3 Deep Residual Learning",
+            "quote": "To the extreme, if an identity mapping were optimal, it would be easier to push the residual to zero than to fit an identity mapping by a stack of nonlinear layers."
+          }
+        ]
+      },
+      "modules": [
+        {
+          "name": "残差块（Residual Block）",
+          "role": "把普通堆叠层改造成学习残差的模块",
+          "input": "上一层特征 x",
+          "output": "F(x, {W_i}) + x",
+          "goal": "学习残差映射，并用 shortcut 提供恒等路径",
+          "next": "堆叠成深层网络",
+          "citations": [
+            {
+              "section": "3 Deep Residual Learning",
+              "quote": "Formally, in this paper we consider a building block defined as: y = F(x, {W_i}) + x."
+            },
+            {
+              "section": "3 Deep Residual Learning",
+              "quote": "The formulation of F(x) + x can be realized by feedforward neural networks with \"shortcut connections\"."
+            }
+          ]
+        },
+        {
+          "name": "Shortcut 连接",
+          "role": "把输入直接加到残差分支输出",
+          "input": "特征 x",
+          "output": "x 与 F(x) 相加",
+          "goal": "不引入额外参数地传递恒等映射，缓解优化困难",
+          "next": "相加后进入下一块",
+          "citations": [
+            {
+              "section": "3 Deep Residual Learning",
+              "quote": "The formulation of F(x) + x can be realized by feedforward neural networks with \"shortcut connections\"."
+            },
+            {
+              "section": "3 Deep Residual Learning",
+              "quote": "To the extreme, if an identity mapping were optimal, it would be easier to push the residual to zero than to fit an identity mapping by a stack of nonlinear layers."
+            }
+          ]
+        },
+        {
+          "name": "深层网络堆叠（34/50/101/152 层）",
+          "role": "用残差块堆出不同深度的 ResNet",
+          "input": "图像",
+          "output": "分类 logits",
+          "goal": "验证深度增加时 residual 网络仍能优化并提升精度",
+          "next": "在 ImageNet 上训练与评测",
+          "citations": [
+            {
+              "section": "Abstract",
+              "quote": "On the ImageNet dataset we evaluate residual nets with a depth of up to 152 layers—8x deeper than VGG nets but still having lower complexity."
+            }
+          ]
+        }
+      ],
+      "experiments": [
+        {
+          "name": "ImageNet 2012 分类（Table 3/4/5）",
+          "claim": "residual 网络能比 plain 网络更深且精度更高",
+          "finding": "152 层 ResNet 的 ensemble 达到 3.57% top-5 error，赢得 ILSVRC 2015 分类第一",
+          "verdict": "supports",
+          "citations": [
+            {
+              "section": "Abstract",
+              "quote": "An ensemble of these residual nets achieves 3.57% error on the ImageNet test set. This result won the 1st place on the ILSVRC 2015 classification task."
+            }
+          ]
+        },
+        {
+          "name": "CIFAR-10 深度分析（100/1000 层）",
+          "claim": "residual 学习能扩展到极深网络",
+          "finding": "在 CIFAR-10 上训练 100 层和 1000 层 ResNet 并分析",
+          "verdict": "supports",
+          "citations": [
+            {
+              "section": "Abstract",
+              "quote": "We also present analysis on CIFAR-10 with 100 and 1000 layers."
+            }
+          ]
+        },
+        {
+          "name": "COCO 检测/分割迁移",
+          "claim": "更深的表示能迁移到检测和分割",
+          "finding": "COCO 目标检测相对提升 28%；在 ILSVRC/COCO 多项任务获第一",
+          "verdict": "supports",
+          "citations": [
+            {
+              "section": "Abstract",
+              "quote": "Solely due to our extremely deep representations, we obtain a 28% relative improvement on the COCO object detection dataset."
+            }
+          ]
+        }
+      ],
+      "limitations": {
+        "stated": [
+          "作者指出退化问题不是过拟合造成的，而是深度带来的优化困难；残差学习主要针对优化，不保证所有任务/所有深度都有效。"
+        ],
+        "inferred": [
+          "极深网络仍依赖 BatchNorm、初始化和学习率等训练技巧；论文没有给出免调参方案。",
+          "残差块增加内存和计算开销；低资源场景需要裁剪。"
+        ],
+        "citations": [
+          {
+            "section": "Abstract",
+            "quote": "Deeper neural networks are more difficult to train."
+          },
+          {
+            "section": "1 Introduction",
+            "quote": "Unexpectedly, such degradation is not caused by overfitting, and adding more layers to a suitably deep model leads to higher training error."
+          }
+        ]
+      }
+    },
+    "formulas": [
+      {
+        "name": "残差映射",
+        "formula": "y = F(x, {W_i}) + x",
+        "latex": "y=\\mathcal{F}(x,\\{W_i\\})+x",
+        "meaning": "堆叠层学习残差 F，shortcut 把输入 x 直接加到输出上；当恒等映射最优时，只需把 F 学成 0。",
+        "where": "§3.1"
+      },
+      {
+        "name": "残差函数",
+        "formula": "F(x) = H(x) - x",
+        "latex": "\\mathcal{F}(x)=\\mathcal{H}(x)-x",
+        "meaning": "把目标映射 H 改写为残差 F，让优化更容易。",
+        "where": "§3.1"
+      },
+      {
+        "name": "恒等映射分解",
+        "formula": "H(x) = F(x) + x",
+        "latex": "\\mathcal{H}(x)=\\mathcal{F}(x)+x",
+        "meaning": "如果最优映射接近恒等，残差分支只需要学习一个接近 0 的修正量。",
+        "where": "§3.1"
+      }
+    ]
+  }
+}

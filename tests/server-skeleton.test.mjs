@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { handler } from "../functions/handler.ts";
+import { resetBudgetForTests } from "../functions/budget.ts";
 
 const BASE = "http://localhost/functions/v1/app";
 const ENV_KEYS = [
@@ -17,11 +18,16 @@ const ENV_KEYS = [
   "PROMPT_VERSION",
   "MAX_UPLOAD_MB",
   "NODE_ENV",
+  "SERVICE_ENABLED",
+  "DAILY_BUDGET_CNY",
+  "ESTIMATED_ANALYSIS_COST_CNY",
+  "MAX_REQUESTS_PER_MINUTE",
 ];
 
 function resetEnv(values = {}) {
   for (const key of ENV_KEYS) delete process.env[key];
   for (const [key, value] of Object.entries(values)) process.env[key] = value;
+  resetBudgetForTests();
 }
 
 async function call(path, init = {}) {
@@ -279,6 +285,49 @@ test("help mock performs 0 outbound calls", async () => {
       body: JSON.stringify({ helpId: "result.citationCheck", paperHash: "paper-1" }),
     });
     assert.equal(answered.response.status, 200);
+    assert.equal(fetchCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("SERVICE_ENABLED=false returns 503 before any provider call", async () => {
+  resetEnv({
+    SERVER_MODE: "true",
+    PARSER_PROVIDER: "mock",
+    LLM_PROVIDER: "mock",
+    SERVICE_ENABLED: "false",
+  });
+  const { response, body } = await call("/api/parse", pdfRequest([30, 31, 32]));
+  assert.equal(response.status, 503);
+  assert.equal(body.code, "SERVICE_DISABLED");
+});
+
+test("daily budget exhaustion returns 402 before LLM fetch", async () => {
+  resetEnv({
+    SERVER_MODE: "true",
+    PARSER_PROVIDER: "mock",
+    LLM_PROVIDER: "mock",
+    DAILY_BUDGET_CNY: "0.01",
+    ESTIMATED_ANALYSIS_COST_CNY: "0.02",
+  });
+  const parsed = await call("/api/parse", pdfRequest([33, 34, 35]));
+  assert.equal(parsed.response.status, 202);
+
+  let fetchCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error("unexpected outbound fetch");
+  };
+  try {
+    const analyzed = await call("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ docId: parsed.body.docId, mode: "quick" }),
+    });
+    assert.equal(analyzed.response.status, 402);
+    assert.equal(analyzed.body.code, "DAILY_BUDGET_EXCEEDED");
     assert.equal(fetchCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;

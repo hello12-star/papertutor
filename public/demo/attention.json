@@ -1,0 +1,294 @@
+{
+  "version": 1,
+  "reviewStatus": "approved",
+  "meta": {
+    "id": "attention",
+    "title": "Attention Is All You Need",
+    "authors": "Ashish Vaswani, Noam Shazeer, Niki Parmar 等",
+    "venue": "NeurIPS",
+    "year": "2017",
+    "arxivId": "1706.03762",
+    "sourceUrl": "https://arxiv.org/abs/1706.03762",
+    "pages": 15,
+    "blurb": "Transformer 的原始论文：完全用注意力替代循环和卷积。",
+    "tags": [
+      "Transformer",
+      "自注意力",
+      "机器翻译"
+    ],
+    "file": "attention.json"
+  },
+  "doc": {
+    "hash": "demo-attention-v1",
+    "fileName": "Attention Is All You Need.pdf",
+    "fileSize": 0,
+    "pages": 15,
+    "mode": "demo",
+    "markdown": "# Attention Is All You Need\n\n> 示例节选：仅保留引用校验所需的原文片段；完整论文见 arXiv:1706.03762。\n\n## Abstract\n\nThe dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train. Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles by over 2 BLEU. On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data.\n\n## 3 Model Architecture\n\nThe Transformer follows this overall architecture using stacked self-attention and point-wise, fully connected layers for both the encoder and decoder.\n\n## 3.1 Encoder and Decoder Stacks\n\nThe encoder is composed of a stack of N = 6 identical layers.\n\nThe decoder is also composed of a stack of N = 6 identical layers.\n\nIn addition to the two sub-layers in each encoder layer, the decoder inserts a third sub-layer, which performs multi-head attention over the output of the encoder stack.\n\n## 3.2 Attention\n\nAn attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors.\n\nWe call our particular attention \"Scaled Dot-Product Attention\".\n\n## 3.2.2 Multi-Head Attention\n\nMulti-head attention allows the model to jointly attend to information from different representation subspaces at different positions.\n\n## 3.5 Positional Encoding\n\nSince our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens in the sequence.\n\n## 4 Why Self-Attention\n\nIn terms of computational complexity, self-attention layers are faster than recurrent layers when the sequence length n is smaller than the representation dimensionality d.\n\nTo improve computational performance for tasks involving very long sequences, self-attention could be restricted to considering only a neighborhood of size r in the input sequence centered around the respective output position.\n",
+    "parsedAt": 0,
+    "sourceUrl": "https://arxiv.org/abs/1706.03762",
+    "sourceLabel": "arXiv:1706.03762"
+  },
+  "analysis": {
+    "quickview": {
+      "meta": {
+        "title": "Attention Is All You Need",
+        "authors": "Ashish Vaswani, Noam Shazeer, Niki Parmar 等",
+        "venue": "NeurIPS",
+        "year": "2017"
+      },
+      "coreQuestion": "如何在不用循环和卷积的前提下，用注意力机制完成序列到序列的翻译？",
+      "coreContribution": "提出 Transformer：完全基于自注意力，训练更并行，并在 WMT 2014 英德/英法翻译上取得当时最优 BLEU。",
+      "methodSummary": "用堆叠的编码器/解码器、多头自注意力和位置编码替代 RNN/CNN；先在大规模平行语料上训练，再在翻译任务上评测。",
+      "prerequisites": [
+        {
+          "term": "自注意力",
+          "english": "self-attention",
+          "why": "论文用 Q/K/V 的点积注意力替代循环结构，不理解注意力就无法读懂 3.2 节。",
+          "suggest": "先看 3.2.1 的公式和一张注意力示意图。"
+        },
+        {
+          "term": "词嵌入",
+          "english": "embedding",
+          "why": "输入 token 先变成向量，才能计算 Q/K/V。",
+          "suggest": "复习 word embedding 和词表映射。"
+        },
+        {
+          "term": "位置编码",
+          "english": "positional encoding",
+          "why": "Transformer 没有循环/卷积，必须显式注入顺序信息。",
+          "suggest": "看 3.5 节的正弦/余弦公式。"
+        },
+        {
+          "term": "残差连接",
+          "english": "residual connection",
+          "why": "每个子层都有残差路径，否则深层网络很难训练。",
+          "suggest": "复习 ResNet 的 shortcut 结构。"
+        },
+        {
+          "term": "层归一化",
+          "english": "layer normalization",
+          "why": "每个子层后做 LayerNorm，稳定深层训练。",
+          "suggest": "了解 LN 与 BatchNorm 的区别。"
+        },
+        {
+          "term": "编码器-解码器",
+          "english": "encoder-decoder",
+          "why": "翻译模型的基本结构，也是理解 cross-attention 的前提。",
+          "suggest": "先看 3.1 节的编码器/解码器栈。"
+        }
+      ],
+      "readingPath": {
+        "first": [
+          "3.1 Encoder and Decoder Stacks",
+          "3.2.1 Scaled Dot-Product Attention",
+          "3.2.2 Multi-Head Attention",
+          "3.5 Positional Encoding"
+        ],
+        "keyFigure": "图 1：Transformer 整体架构；重点看编码器/解码器如何堆叠，以及注意力放在哪些子层。",
+        "skip": [
+          "5.1 训练数据与 batching 的细节",
+          "附录中的超参数与推理代码"
+        ]
+      }
+    },
+    "skeleton": {
+      "problem": {
+        "summary": "主流的序列转换模型依赖复杂的 RNN/CNN 编码器-解码器；它们难以充分并行，长距离依赖路径也较长。作者希望只用注意力机制完成序列转换。",
+        "limitations": [
+          "RNN/CNN 编码器-解码器难以充分并行，训练成本高。",
+          "序列越长，循环结构中的长距离依赖路径越长。",
+          "当时最好的模型仍在编码器和解码器之间使用注意力，但主体仍依赖循环/卷积。"
+        ],
+        "importance": "如果注意力 alone 足够，就能在保持质量的同时大幅提升并行性和训练速度。",
+        "citations": [
+          {
+            "section": "Abstract",
+            "quote": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration."
+          },
+          {
+            "section": "Abstract",
+            "quote": "The best performing models also connect the encoder and decoder through an attention mechanism."
+          }
+        ]
+      },
+      "insight": {
+        "summary": "把序列转换完全建立在自注意力上：每个位置直接与所有位置交互，从而缩短长距离依赖路径，并且可以并行计算。",
+        "citations": [
+          {
+            "section": "Abstract",
+            "quote": "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely."
+          },
+          {
+            "section": "3 Model Architecture",
+            "quote": "The Transformer follows this overall architecture using stacked self-attention and point-wise, fully connected layers for both the encoder and decoder."
+          }
+        ]
+      },
+      "modules": [
+        {
+          "name": "编码器栈（Encoder Stack）",
+          "role": "把输入 token 序列编码成上下文表示",
+          "input": "输入 token 的词嵌入 + 位置编码",
+          "output": "每个位置的上下文表示",
+          "goal": "用 6 层相同的子层堆叠，捕捉序列内部依赖",
+          "next": "输出交给解码器的 cross-attention",
+          "citations": [
+            {
+              "section": "3 Model Architecture",
+              "quote": "The Transformer follows this overall architecture using stacked self-attention and point-wise, fully connected layers for both the encoder and decoder."
+            },
+            {
+              "section": "3.1 Encoder and Decoder Stacks",
+              "quote": "The encoder is composed of a stack of N = 6 identical layers."
+            }
+          ]
+        },
+        {
+          "name": "缩放点积注意力（Scaled Dot-Product Attention）",
+          "role": "计算 query 与所有 key 的匹配，并对 value 加权",
+          "input": "Q、K、V 三个向量矩阵",
+          "output": "按注意力权重加权后的 V",
+          "goal": "用点积相似度 + softmax 聚合信息，并用 √d_k 缩放稳定梯度",
+          "next": "多个头并行计算后拼接",
+          "citations": [
+            {
+              "section": "3.2 Attention",
+              "quote": "An attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors."
+            },
+            {
+              "section": "3.2 Attention",
+              "quote": "We call our particular attention 'Scaled Dot-Product Attention'."
+            }
+          ]
+        },
+        {
+          "name": "多头注意力（Multi-Head Attention）",
+          "role": "让模型在不同表示子空间并行关注不同位置",
+          "input": "Q、K、V 分别经过 h 组线性投影",
+          "output": "h 个头拼接后再线性投影",
+          "goal": "捕捉多种关系模式，避免单头平均化",
+          "next": "送入前馈网络或 cross-attention",
+          "citations": [
+            {
+              "section": "3.2.2 Multi-Head Attention",
+              "quote": "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions."
+            }
+          ]
+        },
+        {
+          "name": "位置编码（Positional Encoding）",
+          "role": "在没有循环/卷积的情况下注入 token 顺序",
+          "input": "token 嵌入",
+          "output": "加入位置信息的嵌入",
+          "goal": "让模型利用相对/绝对位置",
+          "next": "进入编码器和解码器",
+          "citations": [
+            {
+              "section": "3.5 Positional Encoding",
+              "quote": "Since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens in the sequence."
+            }
+          ]
+        },
+        {
+          "name": "解码器栈（Decoder Stack）",
+          "role": "自回归生成目标序列",
+          "input": "已生成 token 的嵌入 + 编码器输出",
+          "output": "下一个 token 的概率分布",
+          "goal": "用 masked self-attention 防止看到未来，并用 cross-attention 读取编码器",
+          "next": "线性层 + softmax 输出词表概率",
+          "citations": [
+            {
+              "section": "3.1 Encoder and Decoder Stacks",
+              "quote": "The decoder is also composed of a stack of N = 6 identical layers."
+            },
+            {
+              "section": "3.1 Encoder and Decoder Stacks",
+              "quote": "In addition to the two sub-layers in each encoder layer, the decoder inserts a third sub-layer, which performs multi-head attention over the output of the encoder stack."
+            }
+          ]
+        }
+      ],
+      "experiments": [
+        {
+          "name": "WMT 2014 英德翻译（Table 2）",
+          "claim": "Transformer 在英德翻译上优于现有模型，且训练更高效",
+          "finding": "28.4 BLEU，超过此前最佳结果（含 ensemble）2 BLEU 以上",
+          "verdict": "supports",
+          "citations": [
+            {
+              "section": "Abstract",
+              "quote": "Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles by over 2 BLEU."
+            }
+          ]
+        },
+        {
+          "name": "WMT 2014 英法翻译（Table 2）",
+          "claim": "单模型达到新的 SOTA",
+          "finding": "41.8 BLEU；8 块 GPU 训练 3.5 天",
+          "verdict": "supports",
+          "citations": [
+            {
+              "section": "Abstract",
+              "quote": "On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature."
+            }
+          ]
+        },
+        {
+          "name": "英语成分句法分析（Table 4）",
+          "claim": "Transformer 能泛化到翻译之外",
+          "finding": "在 WSJ 和半监督设置上都表现良好",
+          "verdict": "supports",
+          "citations": [
+            {
+              "section": "Abstract",
+              "quote": "We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data."
+            }
+          ]
+        }
+      ],
+      "limitations": {
+        "stated": [
+          "自注意力在序列长度 n 大于表示维度 d 时，计算复杂度优势会消失；超长序列需要限制注意力范围。"
+        ],
+        "inferred": [
+          "实验集中在翻译和句法分析，未覆盖长文档、视觉或多模态任务；二次复杂度仍是实际限制。",
+          "位置编码在训练长度之外的外推能力没有被系统验证。"
+        ],
+        "citations": [
+          {
+            "section": "4 Why Self-Attention",
+            "quote": "In terms of computational complexity, self-attention layers are faster than recurrent layers when the sequence length n is smaller than the representation dimensionality d."
+          },
+          {
+            "section": "4 Why Self-Attention",
+            "quote": "To improve computational performance for tasks involving very long sequences, self-attention could be restricted to considering only a neighborhood of size r in the input sequence centered around the respective output position."
+          }
+        ]
+      }
+    },
+    "formulas": [
+      {
+        "name": "缩放点积注意力",
+        "formula": "Attention(Q, K, V) = softmax(QKᵀ / √d_k) V",
+        "latex": "\\mathrm{Attention}(Q,K,V)=\\mathrm{softmax}\\left(\\frac{QK^\\top}{\\sqrt{d_k}}\\right)V",
+        "meaning": "用 Q 与所有 K 的点积衡量相关性，softmax 归一化后对 V 加权；√d_k 防止点积过大导致 softmax 饱和。",
+        "where": "§3.2.1"
+      },
+      {
+        "name": "多头注意力",
+        "formula": "MultiHead(Q, K, V) = Concat(head₁, …, head_h) Wᴼ",
+        "latex": "\\mathrm{MultiHead}(Q,K,V)=\\mathrm{Concat}(\\mathrm{head}_1,\\dots,\\mathrm{head}_h)W^O",
+        "meaning": "把 Q/K/V 投影到 h 组子空间，分别做注意力后拼接，让模型同时关注不同关系。",
+        "where": "§3.2.2"
+      },
+      {
+        "name": "位置编码",
+        "formula": "PE(pos, 2i) = sin(pos / 10000^(2i/d_model))",
+        "latex": "PE_{(pos,2i)}=\\sin(pos/10000^{2i/d_{\\mathrm{model}}})",
+        "meaning": "用不同频率的正弦/余弦函数给每个位置一个可区分的向量，使模型能利用顺序信息。",
+        "where": "§3.5"
+      }
+    ]
+  }
+}

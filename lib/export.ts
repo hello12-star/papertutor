@@ -1,4 +1,7 @@
 import type { Analysis, Citation, ParsedDoc } from "./types";
+import { buildSelfTestQuestions, verdictLabel } from "./self-test.ts";
+
+export { buildSelfTestQuestions, verdictLabel } from "./self-test.ts";
 
 function line(value: string | undefined | null): string {
   return (value ?? "").trim();
@@ -39,33 +42,6 @@ export function paperTitle(doc: ParsedDoc, analysis: Analysis): string {
   return doc.fileName.replace(/\.pdf$/i, "") || "未命名论文";
 }
 
-export function verdictLabel(verdict: string): string {
-  if (verdict === "supports") return "直接支持";
-  if (verdict === "partial") return "部分支持";
-  return "未直接覆盖";
-}
-
-export function buildSelfTestQuestions(analysis: Analysis): string[] {
-  const { skeleton } = analysis;
-  const questions: string[] = [];
-  questions.push("这篇论文试图解决的核心问题是什么？作者认为现有方法有哪些局限？");
-  if (skeleton.insight.summary) {
-    questions.push("作者的核心洞察或关键假设是什么？它为什么能绕开现有方法的局限？");
-  }
-  for (const module of skeleton.modules) {
-    questions.push(`模块「${module.name}」的输入、输出和目标分别是什么？它如何衔接到下一步？`);
-  }
-  for (const experiment of skeleton.experiments) {
-    questions.push(
-      `实验「${experiment.name}」对应作者的哪条声称？实际结果是否支持（${verdictLabel(experiment.verdict)}）？`,
-    );
-  }
-  if (skeleton.limitations.stated.length || skeleton.limitations.inferred.length) {
-    questions.push("作者明确承认了哪些局限？你还能从方法设定中推断出什么？");
-  }
-  return questions.slice(0, 12);
-}
-
 export function buildExportMarkdown(doc: ParsedDoc, analysis: Analysis): string {
   const { quickview, skeleton } = analysis;
   const title = paperTitle(doc, analysis);
@@ -79,7 +55,7 @@ export function buildExportMarkdown(doc: ParsedDoc, analysis: Analysis): string 
       `- 作者：${line(meta.authors) || "未识别"}`,
       `- 来源：${line(meta.venue) || "未识别"} · ${line(meta.year) || "未识别"}`,
       `- 页数：${doc.pages ?? "未知"}`,
-      `- 解析模式：${doc.mode === "token" ? "精准模式" : "轻量模式"}`,
+      `- 解析模式：${doc.mode === "demo" ? "预生成示例" : doc.mode === "token" ? "精准模式" : "轻量模式"}`,
       `- Paper Hash：${doc.hash}`,
       `- 导出日期：${exportedAt}`,
     ].join("\n"),
@@ -231,20 +207,24 @@ export function exportFileName(doc: ParsedDoc, analysis: Analysis): string {
   return `${base || "papertutor-export"}.md`;
 }
 
+export function downloadText(filename: string, text: string): void {
+  const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function downloadMarkdown(
   doc: ParsedDoc,
   analysis: Analysis,
   markdown: string,
 ): void {
-  const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = exportFileName(doc, analysis);
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  downloadText(exportFileName(doc, analysis), markdown);
 }
 
 export async function copyText(text: string): Promise<boolean> {
