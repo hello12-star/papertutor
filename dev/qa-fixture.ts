@@ -1,130 +1,29 @@
 import type { Analysis, ParsedDoc } from "../lib/types";
-
-const MARKDOWN = `# Sparse Attention for Long Documents（QA 夹具）
-
-## Abstract
-We propose a block-sparse attention layer that selects the top-k blocks per query. On three document classification benchmarks it matches dense attention while using 38% less compute.
-
-## 1 Introduction
-Transformer attention scales quadratically with sequence length, so long documents require approximations. Prior work uses fixed patterns or low-rank projections, but these can miss long-range evidence.
-
-## 2 Method
-The layer partitions the sequence into blocks of 64 tokens. A lightweight scorer ranks blocks for each query block, and attention is computed only over the top-8 blocks. The scorer is trained jointly with the main model.
-
-## 3 Experiments
-The proposed layer matches dense attention within 0.4 accuracy points while reducing FLOPs by 38%. Ablations show that top-8 blocks are sufficient; top-4 degrades accuracy by 1.2 points.
-
-## 4 Limitations
-The block size must be tuned per dataset, and the scorer adds a small overhead for short sequences.`;
-
-const QUOTES = {
-  abstract: "We propose a block-sparse attention layer that selects the top-k blocks per query.",
-  insight: "The layer partitions the sequence into blocks of 64 tokens.",
-  method:
-    "A lightweight scorer ranks blocks for each query block, and attention is computed only over the top-8 blocks.",
-  experiment:
-    "The proposed layer matches dense attention within 0.4 accuracy points while reducing FLOPs by 38%.",
-  limitation:
-    "The block size must be tuned per dataset, and the scorer adds a small overhead for short sequences.",
-};
+import {
+  QA_ANALYSIS,
+  QA_META,
+  QA_PAGES,
+  QA_PAPER_MARKDOWN,
+} from "../functions/fixtures/qa.ts";
 
 export function buildQaFixture() {
   const doc: ParsedDoc = {
     hash: "qa-m1a-fixture",
     fileName: "qa-fixture.pdf",
     fileSize: 0,
-    pages: 5,
+    pages: QA_PAGES,
     mode: "flash",
-    markdown: MARKDOWN,
+    markdown: QA_PAPER_MARKDOWN,
     parsedAt: Date.now(),
-  };
-
-  const analysis: Analysis = {
-    quickview: {
-      meta: {
-        title: "Sparse Attention for Long Documents（QA 夹具）",
-        authors: "QA Fixture",
-        venue: "Local QA",
-        year: "2026",
-      },
-      coreQuestion: "长文档上的注意力计算如何在不牺牲效果的前提下降低计算量？",
-      coreContribution:
-        "提出块稀疏注意力：为每个查询块选择 top-k 个键块，只在这些块上计算注意力。",
-      methodSummary:
-        "把序列切成 64 token 的块，用轻量 scorer 排序，只保留 top-8 块参与注意力计算。",
-      prerequisites: [
-        {
-          term: "自注意力",
-          english: "self-attention",
-          why: "理解块稀疏之前，需要知道标准注意力在算什么。",
-          suggest: "先复习 Q、K、V 与缩放点积注意力。",
-        },
-        {
-          term: "稀疏注意力",
-          english: "sparse attention",
-          why: "本文的核心手段，用块级选择替代全量两两计算。",
-          suggest: "先看固定模式稀疏注意力的基本思路。",
-        },
-      ],
-      readingPath: {
-        first: ["Abstract（先看结论）", "2 Method", "3 Experiments"],
-        keyFigure: "示意块选择过程的图（本夹具没有图，读 2 Method 即可）。",
-        skip: ["References 可暂时跳过"],
-      },
-    },
-    skeleton: {
-      problem: {
-        summary:
-          "标准注意力的计算量随序列长度平方增长，长文档场景需要近似方法。",
-        limitations: [
-          "固定模式可能错过长距离证据",
-          "低秩投影会损失部分信息",
-        ],
-        importance:
-          "如果能在保持效果的同时显著降低 FLOPs，长文档建模会更可行。",
-        citations: [{ section: "Abstract", quote: QUOTES.abstract }],
-      },
-      insight: {
-        summary:
-          "注意力不需要对所有 token 对都计算；按块选择少量关键块即可保留大部分信息。",
-        citations: [
-          { section: "2 Method", quote: QUOTES.insight },
-          {
-            section: "Unverified",
-            quote: "This sentence is intentionally missing from the parsed markdown.",
-          },
-        ],
-      },
-      modules: [
-        {
-          name: "块稀疏注意力层",
-          role: "用块级选择替代全量注意力",
-          input: "序列的 token 表示",
-          output: "聚合后的上下文表示",
-          goal: "只计算 top-8 块，降低 FLOPs",
-          next: "输出送入下一层或分类头",
-          citations: [{ section: "2 Method", quote: QUOTES.method }],
-        },
-      ],
-      experiments: [
-        {
-          name: "主实验（3 个数据集）",
-          claim: "块稀疏注意力能在降低计算量的同时保持效果",
-          finding: "与 dense attention 的准确率差距在 0.4 以内，FLOPs 降低 38%。",
-          verdict: "supports",
-          citations: [{ section: "3 Experiments", quote: QUOTES.experiment }],
-        },
-      ],
-      limitations: {
-        stated: ["块大小需要按数据集调参。"],
-        inferred: ["短序列上 scorer 的额外开销可能不划算。"],
-        citations: [{ section: "4 Limitations", quote: QUOTES.limitation }],
-      },
-    },
   };
 
   return {
     doc,
-    record: { analysis, model: "qa-fixture", createdAt: Date.now() },
+    record: {
+      analysis: QA_ANALYSIS as unknown as Analysis,
+      model: "qa-fixture",
+      createdAt: Date.now(),
+    },
+    meta: QA_META,
   };
 }

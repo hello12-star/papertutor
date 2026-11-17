@@ -1,3 +1,5 @@
+import { handleServerApi } from "./server-api.ts";
+
 const MINERU = "https://mineru.net";
 
 const JSON_HEADERS = {
@@ -17,6 +19,10 @@ export async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const action = url.searchParams.get("action") ?? "health";
   try {
+    const path = url.pathname.replace(/^\/functions\/v1\/app/, "");
+    if (path.startsWith("/api/")) {
+      return await handleServerApi(request, url, path);
+    }
     if (action === "health") {
       return json({ ok: true, service: "papertutor", ts: Date.now() });
     }

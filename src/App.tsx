@@ -74,20 +74,94 @@ export default function App() {
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
-    if (new URLSearchParams(window.location.search).get("qa") !== "m1a") return;
+    const qa = new URLSearchParams(window.location.search).get("qa");
+    if (qa !== "m1a" && qa !== "server") return;
     let cancelled = false;
     void (async () => {
-      const mod = await import("../dev/qa-fixture");
-      if (cancelled) return;
-      const { doc: qaDoc, record } = mod.buildQaFixture();
-      const qaStats = verifyCitations(qaDoc.markdown, record.analysis);
-      setDoc(qaDoc);
-      setAnalysis(record.analysis);
-      setStats(qaStats);
-      setError(null);
-      setGenerating(false);
-      setCacheHit(false);
-      setView("result");
+      try {
+        let qaDoc: ParsedDoc;
+        let qaAnalysis: Analysis;
+        let qaStats: CitationStats;
+
+        if (qa === "m1a") {
+          const response = await fetch("/dev/qa-fixture.json");
+          if (!response.ok) {
+            throw new Error(`无法加载 QA 夹具（HTTP ${response.status}）`);
+          }
+          const fixture = await response.json();
+          qaDoc = fixture.doc as ParsedDoc;
+          qaAnalysis = fixture.record.analysis as Analysis;
+          qaStats = verifyCitations(qaDoc.markdown, qaAnalysis);
+        } else {
+          const parseResponse = await fetch("/functions/v1/app/api/parse", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/pdf",
+              "x-file-name": "qa-fixture.pdf",
+            },
+            body: new Blob(["qa-mock-paper"], { type: "application/pdf" }),
+          });
+          const parsed = await parseResponse.json();
+          if (!parsed?.ok) {
+            throw new Error(
+              `${parsed?.code ?? "PARSE_FAILED"}: ${parsed?.message ?? "解析失败"}`,
+            );
+          }
+          const jobResponse = await fetch(
+            `/functions/v1/app/api/jobs/${encodeURIComponent(parsed.jobId)}`,
+          );
+          const job = await jobResponse.json();
+          if (!job?.ok) {
+            throw new Error(`${job?.code ?? "JOB_FAILED"}: ${job?.message ?? "任务失败"}`);
+          }
+          const markdown = job.job?.markdown ?? parsed.markdown;
+          const analyzeResponse = await fetch("/functions/v1/app/api/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ docId: parsed.docId, mode: "quick" }),
+          });
+          const analyzed = await analyzeResponse.json();
+          if (!analyzed?.ok) {
+            throw new Error(
+              `${analyzed?.code ?? "ANALYZE_FAILED"}: ${analyzed?.message ?? "分析失败"}`,
+            );
+          }
+          qaDoc = {
+            hash: parsed.docId,
+            fileName: "qa-fixture.pdf",
+            fileSize: 0,
+            pages: parsed.pages ?? 5,
+            mode: "flash",
+            markdown,
+            parsedAt: Date.now(),
+          };
+          qaAnalysis = analyzed.analysis as Analysis;
+          qaStats = verifyCitations(markdown, qaAnalysis);
+        }
+
+        if (cancelled) return;
+        setDoc(qaDoc);
+        setAnalysis(qaAnalysis);
+        setStats(qaStats);
+        setError(null);
+        setGenerating(false);
+        setCacheHit(false);
+        setView("result");
+      } catch (error) {
+        if (cancelled) return;
+        failWith(
+          {
+            title: qa === "server" ? "Server mock E2E 失败" : "QA 夹具加载失败",
+            message: error instanceof Error ? error.message : String(error),
+            hint:
+              qa === "server"
+                ? "请确认本地函数以 SERVER_MODE=true PARSER_PROVIDER=mock LLM_PROVIDER=mock 运行在 8000 端口。"
+                : undefined,
+            kind: "network",
+          },
+          "working",
+        );
+      }
     })();
     return () => {
       cancelled = true;
