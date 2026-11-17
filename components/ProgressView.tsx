@@ -57,7 +57,7 @@ export function ProgressView({ fileName, fileSize, phases, error, onOpenSettings
         <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
           Working
         </p>
-        <h1 className="font-display mt-2 text-3xl font-semibold tracking-tight">
+        <h1 className="font-display mt-2 text-3xl font-semibold tracking-tight break-words">
           正在把这篇论文重构成学习材料
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">

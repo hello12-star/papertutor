@@ -1,0 +1,53 @@
+{
+  "metrics": [
+    {
+      "label": "1440-landing",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "bodyScrollWidth": 1440,
+      "overflow": 0
+    },
+    {
+      "label": "1440-result",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "bodyScrollWidth": 1440,
+      "overflow": 0
+    },
+    {
+      "label": "500-landing",
+      "scrollWidth": 500,
+      "clientWidth": 500,
+      "bodyScrollWidth": 500,
+      "overflow": 0
+    },
+    {
+      "label": "500-result",
+      "scrollWidth": 500,
+      "clientWidth": 500,
+      "bodyScrollWidth": 500,
+      "overflow": 0
+    },
+    {
+      "label": "390-landing",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bodyScrollWidth": 390,
+      "overflow": 0
+    },
+    {
+      "label": "390-result",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bodyScrollWidth": 390,
+      "overflow": 0
+    }
+  ],
+  "citations": {
+    "desktopVerifiedMissing": 0,
+    "desktopUnverifiedMissing": 1,
+    "mobileVerifiedMissing": 0,
+    "mobileUnverifiedMissing": 1
+  },
+  "consoleErrors": []
+}

@@ -411,14 +411,14 @@ export function SettingsDialog({ open, onOpenChange, settings, onSave, onClearCa
                   type="button"
                   onClick={() => applyPreset(preset.id)}
                   className={cn(
-                    "rounded-lg border px-3 py-2 text-left transition-colors",
+                    "min-w-0 rounded-lg border px-3 py-2 text-left transition-colors",
                     activePreset?.id === preset.id
                       ? "border-primary bg-primary/5"
                       : "border-border bg-card hover:bg-accent",
                   )}
                 >
                   <span className="block text-sm font-medium">{preset.label}</span>
-                  <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
+                  <span className="mt-0.5 block text-[11px] leading-4 break-words text-muted-foreground">
                     {preset.note}
                   </span>
                 </button>

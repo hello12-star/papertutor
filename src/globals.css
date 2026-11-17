@@ -132,6 +132,7 @@
     font-family: var(--site-font);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    overflow-x: clip;
   }
   body::before {
     content: "";

@@ -55,8 +55,8 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 pt-10 pb-20">
-      <div className="grid items-center gap-12 lg:grid-cols-[1.02fr_0.98fr]">
-        <section>
+      <div className="grid min-w-0 items-center gap-12 lg:grid-cols-[1.02fr_0.98fr]">
+        <section className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
               StudyHack · ML 论文陪读
@@ -66,11 +66,11 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
             </Badge>
           </div>
 
-          <h1 className="font-display mt-6 text-[2.7rem] leading-[1.12] font-semibold tracking-tight sm:text-5xl">
+          <h1 className="font-display mt-6 text-[2.15rem] leading-[1.14] font-semibold tracking-tight break-words [overflow-wrap:anywhere] sm:text-5xl">
             读论文最难的，
             <br />
             不是英文。
-            <span className="relative ml-1 inline-block text-primary">
+            <span className="relative ml-1 inline-block max-w-full align-baseline text-primary">
               是不知道
               <span className="absolute -bottom-1 left-0 h-[3px] w-full rounded-full bg-primary/25" />
             </span>
@@ -105,11 +105,11 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
           </ul>
         </section>
 
-        <section className="relative">
+        <section className="relative min-w-0">
           <div className="absolute -inset-3 -z-10 rounded-[26px] bg-primary/[0.045]" />
           <div
             className={cn(
-              "paper-texture rounded-2xl border bg-card p-6 shadow-[0_24px_60px_-38px_rgba(29,39,51,0.45)] transition-colors sm:p-7",
+              "paper-texture min-w-0 rounded-2xl border bg-card p-6 shadow-[0_24px_60px_-38px_rgba(29,39,51,0.45)] transition-colors sm:p-7",
               dragging && "border-primary bg-primary/[0.04]",
             )}
             onDragOver={(event) => {
@@ -123,12 +123,12 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
               handleFiles(event.dataTransfer.files);
             }}
           >
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
                   Upload
                 </p>
-                <h2 className="font-display mt-1 text-2xl font-semibold">上传一篇论文</h2>
+                <h2 className="font-display mt-1 text-2xl font-semibold break-words">上传一篇论文</h2>
               </div>
               <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <UploadCloud className="size-5" />
@@ -138,7 +138,7 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
             <button
               type="button"
               onClick={pick}
-              className="mt-5 flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background/60 px-5 py-9 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.03]"
+              className="mt-5 flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background/60 px-5 py-9 text-center break-words transition-colors hover:border-primary/50 hover:bg-primary/[0.03]"
             >
               <FileText className="size-7 text-muted-foreground" />
               <span className="text-sm font-medium">把 PDF 拖到这里，或点击选择文件</span>

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -13,7 +13,7 @@ import {
   FlaskConical,
   Lightbulb,
   ListTree,
-  Quote,
+  LocateFixed,
   RefreshCw,
   Settings2,
   Sparkles,
@@ -23,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { OriginalSheet } from "@/components/OriginalSheet";
 import type {
   Analysis,
   AppError,
@@ -35,6 +36,8 @@ import type {
   QuickView,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const LocateContext = createContext<(citation: Citation) => void>(() => {});
 
 type Props = {
   doc: ParsedDoc;
@@ -73,6 +76,8 @@ export function ResultView({
   onBack,
 }: Props) {
   const [copied, setCopied] = useState(false);
+  const [locateTarget, setLocateTarget] = useState<Citation | null>(null);
+  const locateCitation = (citation: Citation) => setLocateTarget(citation);
 
   const copyDiagnostics = () => {
     if (!error) return;
@@ -125,8 +130,8 @@ export function ResultView({
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 pt-8 pb-24">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0 sm:flex-1">
           <button
             type="button"
             onClick={onBack}
@@ -134,7 +139,7 @@ export function ResultView({
           >
             ← 换一篇论文
           </button>
-          <h1 className="font-display mt-3 max-w-3xl text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">
+          <h1 className="font-display mt-3 max-w-3xl text-3xl leading-tight font-semibold tracking-tight break-words [overflow-wrap:anywhere] sm:text-4xl">
             {title}
           </h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
@@ -162,7 +167,7 @@ export function ResultView({
           </div>
         </div>
 
-        <div className="flex shrink-0 gap-2">
+        <div className="flex max-w-full flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={onOpenSettings}>
             <Settings2 /> 设置
           </Button>
@@ -221,7 +226,8 @@ export function ResultView({
       {!analysis ? (
         <ParseReady doc={doc} hasKey={hasKey} generating={generating} onRegenerate={onRegenerate} onOpenSettings={onOpenSettings} />
       ) : (
-        <div className="mt-8 grid gap-10 lg:grid-cols-[168px_minmax(0,1fr)]">
+        <LocateContext.Provider value={locateCitation}>
+          <div className="mt-8 grid gap-10 lg:grid-cols-[168px_minmax(0,1fr)]">
           <aside className="hidden lg:block">
             <nav className="sticky top-24 space-y-0.5">
               <p className="mb-2 px-2 text-[11px] font-medium tracking-[0.16em] text-muted-foreground uppercase">
@@ -256,7 +262,18 @@ export function ResultView({
             <RawMarkdown markdown={doc.markdown} />
           </div>
         </div>
+        </LocateContext.Provider>
       )}
+
+      <OriginalSheet
+        open={Boolean(locateTarget)}
+        onOpenChange={(open) => {
+          if (!open) setLocateTarget(null);
+        }}
+        title={title}
+        markdown={doc.markdown}
+        target={locateTarget}
+      />
     </main>
   );
 }
@@ -454,7 +471,7 @@ function QuickViewSection({ quickview }: { quickview: QuickView }) {
                       <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[9px] text-primary">
                         {index + 1}
                       </span>
-                      <span>{item}</span>
+                      <span className="break-words">{item}</span>
                     </li>
                   ))}
                 </ol>
@@ -464,7 +481,7 @@ function QuickViewSection({ quickview }: { quickview: QuickView }) {
                   <Eye className="mt-0.5 size-3.5 shrink-0 text-primary" />
                   <div>
                     <p className="text-[11px] font-medium text-primary">核心图</p>
-                    <p className="mt-1 text-xs leading-5">{quickview.readingPath.keyFigure}</p>
+                    <p className="mt-1 text-xs leading-5 break-words">{quickview.readingPath.keyFigure}</p>
                   </div>
                 </div>
               )}
@@ -477,7 +494,7 @@ function QuickViewSection({ quickview }: { quickview: QuickView }) {
                     {quickview.readingPath.skip.map((item, index) => (
                       <li key={`${item}-${index}`} className="flex gap-1.5">
                         <span className="text-border">–</span>
-                        <span>{item}</span>
+                        <span className="break-words">{item}</span>
                       </li>
                     ))}
                   </ul>
@@ -498,7 +515,7 @@ function KeyBlock({ icon, label, text }: { icon: ReactNode; label: string; text:
         {icon}
         <span className="text-[11px] font-medium tracking-[0.12em] uppercase">{label}</span>
       </div>
-      <p className="mt-2.5 text-sm leading-6">{text || "未识别"}</p>
+      <p className="mt-2.5 text-sm leading-6 break-words">{text || "未识别"}</p>
     </div>
   );
 }
@@ -515,7 +532,7 @@ function PrerequisiteItem({ item, defaultOpen }: { item: Prerequisite; defaultOp
         </span>
         <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-2 border-t px-3 py-2.5 text-xs leading-5">
+      <CollapsibleContent className="space-y-2 border-t px-3 py-2.5 text-xs leading-5 break-words">
         <p>
           <span className="mr-1.5 font-medium text-primary">为什么需要</span>
           <span className="text-foreground/85">{item.why || "模型未说明"}</span>
@@ -545,9 +562,9 @@ function SkeletonSection({ skeleton }: { skeleton: Analysis["skeleton"] }) {
         <div className="absolute top-3 bottom-3 left-[15px] w-px bg-border" aria-hidden />
         <div className="space-y-8">
           <Station index="01" id="problem" title="问题与动机" icon={<Target className="size-4" />}>
-            <p className="text-sm leading-7">{skeleton.problem.summary || "未识别"}</p>
+            <p className="text-sm leading-7 break-words">{skeleton.problem.summary || "未识别"}</p>
             {skeleton.problem.importance && (
-              <p className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs leading-5 text-muted-foreground">
+              <p className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs leading-5 break-words text-muted-foreground">
                 <span className="font-medium text-foreground">为什么重要：</span>
                 {skeleton.problem.importance}
               </p>
@@ -561,7 +578,7 @@ function SkeletonSection({ skeleton }: { skeleton: Analysis["skeleton"] }) {
                   {skeleton.problem.limitations.map((item, index) => (
                     <li key={index} className="flex gap-2 text-[13px] leading-6">
                       <ArrowRight className="mt-1 size-3.5 shrink-0 text-primary/60" />
-                      <span>{item}</span>
+                      <span className="break-words">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -572,7 +589,7 @@ function SkeletonSection({ skeleton }: { skeleton: Analysis["skeleton"] }) {
 
           <Station index="02" id="insight" title="核心洞察 / 假设" icon={<Lightbulb className="size-4" />}>
             <div className="rounded-xl border-l-[3px] border-primary bg-primary/[0.04] px-4 py-3">
-              <p className="text-sm leading-7">{skeleton.insight.summary || "未识别"}</p>
+              <p className="text-sm leading-7 break-words">{skeleton.insight.summary || "未识别"}</p>
             </div>
             <Citations citations={skeleton.insight.citations} />
           </Station>
@@ -670,7 +687,7 @@ function Station({
       <div className="absolute top-0 left-0 z-10 flex size-8 items-center justify-center rounded-full border bg-card text-primary shadow-xs">
         {icon}
       </div>
-      <div className="rounded-2xl border bg-card p-5 sm:p-6">
+      <div className="min-w-0 rounded-2xl border bg-card p-5 sm:p-6">
         <div className="mb-4 flex items-center gap-2">
           <span className="font-mono text-[11px] text-primary">{index}</span>
           <h3 className="font-display text-lg font-semibold">{title}</h3>
@@ -683,14 +700,14 @@ function Station({
 
 function ModuleCard({ module, index }: { module: MethodModule; index: number }) {
   return (
-    <div className="rounded-xl border bg-background/60 p-4">
+    <div className="min-w-0 rounded-xl border bg-background/60 p-4">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 font-mono text-[10px] text-primary">
           M{index + 1}
         </span>
         <div className="min-w-0">
           <p className="text-sm font-medium">{module.name}</p>
-          {module.role && <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{module.role}</p>}
+          {module.role && <p className="mt-0.5 text-xs leading-5 break-words text-muted-foreground">{module.role}</p>}
         </div>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -710,7 +727,7 @@ function Field({ label, value }: { label: string; value: string }) {
       <p className="text-[10px] font-medium tracking-[0.1em] text-muted-foreground uppercase">
         {label}
       </p>
-      <p className="mt-0.5 text-xs leading-5">{value || "未说明"}</p>
+      <p className="mt-0.5 text-xs leading-5 break-words">{value || "未说明"}</p>
     </div>
   );
 }
@@ -723,7 +740,7 @@ function ExperimentCard({ experiment }: { experiment: Experiment }) {
         ? { label: "部分支持", className: "border-amber-500/40 text-amber-700" }
         : { label: "未直接覆盖", className: "border-destructive/30 text-destructive" };
   return (
-    <div className="rounded-xl border bg-background/60 p-4">
+    <div className="min-w-0 rounded-xl border bg-background/60 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">{experiment.name}</p>
         <Badge variant="outline" className={cn("font-normal", badge.className)}>
@@ -766,35 +783,47 @@ function Citations({ citations }: { citations: Citation[] }) {
 
 function CitationChip({ citation }: { citation: Citation }) {
   const [open, setOpen] = useState(false);
+  const locate = useContext(LocateContext);
   return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        className={cn(
-          "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors",
-          citation.verified
-            ? "border-primary/25 bg-primary/[0.04] text-primary hover:bg-primary/[0.08]"
-            : "border-amber-500/35 bg-amber-50 text-amber-800 hover:bg-amber-100",
-        )}
-      >
-        <Quote className="size-3" />
-        <span className="truncate">{citation.section || "原文"}</span>
-        {citation.verified ? (
-          <CheckCircle2 className="size-3 shrink-0" />
-        ) : (
-          <AlertTriangle className="size-3 shrink-0" />
-        )}
-        <ChevronDown className={cn("size-3 shrink-0 transition-transform", open && "rotate-180")} />
-      </button>
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-1">
+        <button
+          type="button"
+          onClick={() => locate(citation)}
+          title="在解析出的原文中定位这句引文"
+          className={cn(
+            "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+            citation.verified
+              ? "border-primary/25 bg-primary/[0.04] text-primary hover:bg-primary/[0.08]"
+              : "border-amber-500/35 bg-amber-50 text-amber-800 hover:bg-amber-100",
+          )}
+        >
+          <LocateFixed className="size-3 shrink-0" />
+          <span className="truncate">{citation.section || "原文"}</span>
+          {citation.verified ? (
+            <CheckCircle2 className="size-3 shrink-0" />
+          ) : (
+            <AlertTriangle className="size-3 shrink-0" />
+          )}
+          <span className="hidden shrink-0 text-[10px] opacity-70 sm:inline">定位</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-label={open ? "收起引文" : "展开引文"}
+          className="rounded-full border border-border p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <ChevronDown className={cn("size-3 transition-transform", open && "rotate-180")} />
+        </button>
+      </div>
       {!citation.verified && (
         <p className="mt-1 text-[10px] text-amber-700/80">
-          未能在解析文本中精确匹配，请以原文为准
+          未能在解析文本中精确匹配，点击仍可查看定位结果
         </p>
       )}
       {open && (
-        <blockquote className="mt-1.5 rounded-lg border-l-2 border-primary/40 bg-secondary/50 px-3 py-2 font-serif text-[12px] leading-5 text-foreground/80 italic">
+        <blockquote className="mt-1.5 rounded-lg border-l-2 border-primary/40 bg-secondary/50 px-3 py-2 font-serif text-[12px] leading-5 break-words text-foreground/80 italic">
           “{citation.quote}”
         </blockquote>
       )}
@@ -827,7 +856,7 @@ function RawMarkdown({ markdown, hidden }: { markdown: string; hidden?: boolean 
           <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
         </button>
         {open && (
-          <pre className="max-h-[560px] overflow-auto border-t bg-secondary/40 p-5 font-mono text-[11px] leading-5 whitespace-pre-wrap">
+          <pre className="max-h-[560px] overflow-auto border-t bg-secondary/40 p-5 font-mono text-[11px] leading-5 break-words whitespace-pre-wrap">
             {markdown}
           </pre>
         )}
