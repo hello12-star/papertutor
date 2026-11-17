@@ -9,6 +9,8 @@ import { SettingsDialog } from "@/components/SettingsDialog";
 import { generateQuickview, generateSkeleton, assembleAnalysis, verifyCitations } from "@/lib/analysis";
 import { cacheAnalysis, cacheDoc, clearCache, getCachedAnalysis, getCachedDoc } from "@/lib/cache";
 import { clearHelpCache } from "@/lib/help-cache";
+import { saveHistory } from "@/lib/history-db";
+import { historyTitle, type HistoryRecord } from "@/lib/history-core";
 import { countPdfPages, formatBytes, sha256Hex } from "@/lib/files";
 import { LlmError } from "@/lib/llm";
 import { verifyModel } from "@/lib/model-check";
@@ -73,6 +75,17 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [view]);
+
+  useEffect(() => {
+    if (!doc || !analysis) return;
+    void saveHistory({
+      paperHash: doc.hash,
+      title: historyTitle(doc, analysis),
+      createdAt: Date.now(),
+      doc,
+      analysis,
+    });
+  }, [doc, analysis]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -428,6 +441,17 @@ export default function App() {
     }
   };
 
+  const openHistory = (record: HistoryRecord) => {
+    runRef.current += 1;
+    setDoc(record.doc);
+    setAnalysis(record.analysis);
+    setStats(verifyCitations(record.doc.markdown, record.analysis));
+    setError(null);
+    setGenerating(false);
+    setCacheHit(false);
+    setView("result");
+  };
+
   const regenerate = () => {
     if (!doc) return;
     if (!settings.apiKey.trim()) {
@@ -493,6 +517,7 @@ export default function App() {
             <Landing
               onFile={(file) => void start(file)}
               onOpenSettings={() => setSettingsOpen(true)}
+              onOpenHistory={openHistory}
               hasKey={hasKey}
               hasMineruToken={hasMineruToken}
             />

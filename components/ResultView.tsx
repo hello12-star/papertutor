@@ -8,8 +8,10 @@ import {
   ChevronDown,
   Compass,
   Copy,
+  Download,
   Eye,
   FastForward,
+  FileText,
   FlaskConical,
   Lightbulb,
   ListTree,
@@ -23,8 +25,21 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { OriginalSheet } from "@/components/OriginalSheet";
 import { HelpButton } from "@/components/HelpSystem";
+import {
+  buildExportMarkdown,
+  buildOutline,
+  buildSelfTestQuestions,
+  copyText,
+  downloadMarkdown,
+} from "@/lib/export";
 import type {
   Analysis,
   AppError,
@@ -63,6 +78,15 @@ const NAV = [
   { id: "limitations", label: "局限", index: "05" },
 ];
 
+type StepId = "quickview" | "original" | "skeleton" | "selfTest";
+
+const STEP_ITEMS = [
+  { id: "quickview" as const, label: "速览", icon: Compass },
+  { id: "original" as const, label: "读原文", icon: FileText },
+  { id: "skeleton" as const, label: "拆论证", icon: ListTree },
+  { id: "selfTest" as const, label: "自测", icon: CheckCircle2 },
+];
+
 export function ResultView({
   doc,
   analysis,
@@ -78,7 +102,46 @@ export function ResultView({
 }: Props) {
   const [copied, setCopied] = useState(false);
   const [locateTarget, setLocateTarget] = useState<Citation | null>(null);
-  const locateCitation = (citation: Citation) => setLocateTarget(citation);
+  const [originalOpen, setOriginalOpen] = useState(false);
+  const [activeStep, setActiveStep] = useState<StepId>("quickview");
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+
+  const locateCitation = (citation: Citation) => {
+    setLocateTarget(citation);
+    setActiveStep("original");
+  };
+
+  const flashExportNotice = (message: string) => {
+    setExportNotice(message);
+    window.setTimeout(() => setExportNotice(null), 2500);
+  };
+
+  const handleStep = (step: StepId) => {
+    setActiveStep(step);
+    if (step === "original") {
+      setOriginalOpen(true);
+      return;
+    }
+    document.getElementById(step)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleDownload = () => {
+    if (!analysis) return;
+    downloadMarkdown(doc, analysis, buildExportMarkdown(doc, analysis));
+    flashExportNotice("Markdown 已开始下载");
+  };
+
+  const handleCopyMarkdown = async () => {
+    if (!analysis) return;
+    const ok = await copyText(buildExportMarkdown(doc, analysis));
+    flashExportNotice(ok ? "Markdown 已复制" : "复制失败，请改用下载");
+  };
+
+  const handleCopyOutline = async () => {
+    if (!analysis) return;
+    const ok = await copyText(buildOutline(doc, analysis));
+    flashExportNotice(ok ? "大纲已复制" : "复制失败，请改用下载");
+  };
 
   const copyDiagnostics = () => {
     if (!error) return;
@@ -130,7 +193,7 @@ export function ResultView({
   const meta = analysis?.quickview.meta;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 pt-8 pb-24">
+    <main className="mx-auto w-full max-w-6xl px-6 pt-8 pb-32 md:pb-24">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0 sm:flex-1">
           <button
@@ -168,7 +231,7 @@ export function ResultView({
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-[10px] text-muted-foreground">学习工具（即将上线）</span>
+            <span className="text-[10px] text-muted-foreground">学习工具</span>
             <Button variant="outline" size="sm" disabled>
               深度模式
             </Button>
@@ -177,10 +240,28 @@ export function ResultView({
               自测
             </Button>
             <HelpButton helpId="result.selfTest" />
-            <Button variant="outline" size="sm" disabled>
-              导出
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={!analysis}>
+                  <Download /> 导出
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={handleDownload}>
+                  <Download /> 下载 Markdown
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void handleCopyMarkdown()}>
+                  <Copy /> 复制 Markdown
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void handleCopyOutline()}>
+                  <ListTree /> 复制大纲
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <HelpButton helpId="result.export" />
+            {exportNotice && (
+              <span className="text-[11px] text-primary">{exportNotice}</span>
+            )}
           </div>
         </div>
 
@@ -244,7 +325,8 @@ export function ResultView({
         <ParseReady doc={doc} hasKey={hasKey} generating={generating} onRegenerate={onRegenerate} onOpenSettings={onOpenSettings} />
       ) : (
         <LocateContext.Provider value={locateCitation}>
-          <div className="mt-8 grid gap-10 lg:grid-cols-[168px_minmax(0,1fr)]">
+          <StepNav active={activeStep} onSelect={handleStep} />
+          <div className="mt-4 grid gap-10 lg:grid-cols-[168px_minmax(0,1fr)]">
           <aside className="hidden lg:block">
             <nav className="sticky top-24 space-y-0.5">
               <p className="mb-2 px-2 text-[11px] font-medium tracking-[0.16em] text-muted-foreground uppercase">
@@ -276,6 +358,7 @@ export function ResultView({
           <div className="min-w-0 space-y-14">
             <QuickViewSection quickview={analysis.quickview} />
             <SkeletonSection skeleton={analysis.skeleton} />
+            <SelfTestSection analysis={analysis} />
             <RawMarkdown markdown={doc.markdown} />
           </div>
         </div>
@@ -283,9 +366,12 @@ export function ResultView({
       )}
 
       <OriginalSheet
-        open={Boolean(locateTarget)}
+        open={originalOpen || Boolean(locateTarget)}
         onOpenChange={(open) => {
-          if (!open) setLocateTarget(null);
+          if (!open) {
+            setOriginalOpen(false);
+            setLocateTarget(null);
+          }
         }}
         title={title}
         markdown={doc.markdown}
@@ -887,6 +973,94 @@ function RawMarkdown({ markdown, hidden }: { markdown: string; hidden?: boolean 
             {markdown}
           </pre>
         )}
+      </div>
+    </section>
+  );
+}
+
+function StepNav({
+  active,
+  onSelect,
+}: {
+  active: StepId;
+  onSelect: (step: StepId) => void;
+}) {
+  return (
+    <>
+      <nav className="sticky top-16 z-30 mb-4 hidden items-center gap-1 rounded-xl border bg-background/90 p-1 backdrop-blur md:flex">
+        {STEP_ITEMS.map((item, index) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onSelect(item.id)}
+            aria-current={active === item.id ? "step" : undefined}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+              active === item.id
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            <span
+              className={cn(
+                "font-mono text-[10px]",
+                active === item.id ? "text-primary-foreground/70" : "text-border",
+              )}
+            >
+              {index + 1}
+            </span>
+            <item.icon className="size-3.5" />
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+        {STEP_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onSelect(item.id)}
+            aria-current={active === item.id ? "step" : undefined}
+            className={cn(
+              "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px]",
+              active === item.id ? "text-primary" : "text-muted-foreground",
+            )}
+          >
+            <item.icon className="size-4" />
+            {item.label}
+          </button>
+        ))}
+      </nav>
+    </>
+  );
+}
+
+function SelfTestSection({ analysis }: { analysis: Analysis }) {
+  const questions = buildSelfTestQuestions(analysis);
+  return (
+    <section id="selfTest" className="scroll-mt-24">
+      <SectionTitle
+        index="—"
+        eyebrow="Self test"
+        title="自测题"
+        description="根据论证骨架生成；交互答题即将上线。"
+        helpId="result.selfTest"
+      />
+      <div className="rounded-2xl border bg-card p-5">
+        <ol className="space-y-3">
+          {questions.map((question, index) => (
+            <li key={index} className="flex gap-3 text-sm leading-6">
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[10px] text-primary">
+                {index + 1}
+              </span>
+              <span className="break-words">{question}</span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-4 text-xs leading-5 text-muted-foreground">
+          当前可在导出 Markdown 中带走这些问题；交互答题会在后续版本加入。
+        </p>
       </div>
     </section>
   );

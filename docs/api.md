@@ -1,4 +1,4 @@
-# PaperTutor API（M1-C 服务端骨架 + 帮助）
+# PaperTutor API（M1-D1 服务端骨架 + 帮助 + 导出/历史）
 
 ## 入口与开关
 
@@ -165,10 +165,19 @@
 
 ## 帮助缓存与限制
 
-- 客户端缓存键：`help:answer:v2:{helpId}:{paperHash}:{variant}:v2`
+- 客户端缓存键：`help:answer:v2:{helpId}:{paperHash}:{variant}:v3`
 - IndexedDB：`papertutor-help` / `answers`
+- 帮助面板不显示内部来源；面板根节点带 `data-source`（cache/api/fallback）供 QA
 - 每屏最多 5 条预生成、每会话最多 20 条、同一控件最多重生成 1 次
 - 预生成：landing 前 3、result 前 5，分数 ≥0.55，至少 1 条；并发 1
+
+## 客户端离线功能（M1-D1，无新增服务端 API）
+
+- 导出 Markdown：标题、元数据、速览卡、术语、论证骨架、引用清单、自测题
+- 导出菜单：下载 `.md` / 复制 Markdown / 复制大纲
+- 最近分析：IndexedDB `papertutor-history` / `records`，按 `paperHash` 去重，最多 10 条
+- 历史记录字段：`paperHash`、`title`、`createdAt`、`doc`、`analysis`
+- 四步导航：速览 / 读原文 / 拆论证 / 自测；桌面顶部、移动端底部
 
 ## 缓存键
 
@@ -245,7 +254,7 @@ SERVER_MODE=true PARSER_PROVIDER=mock LLM_PROVIDER=mock node dev/function-node.m
 测试：
 
 ```bash
-npm test          # 18 个服务端/帮助测试
+npm test          # 24 个服务端/帮助/导出/历史测试
 npm run build     # 前端构建 + tsc
 ```
 

@@ -8,7 +8,6 @@ import {
 import { Info, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { fetchHelpAnswer, fetchPredictions } from "@/lib/help-api";
@@ -16,7 +15,6 @@ import { helpCache } from "@/lib/help-cache";
 import {
   bootstrapHelp,
   canRegenerate,
-  helpSourceLabel,
   loadHelpAnswer,
   type HelpSource,
 } from "@/lib/help-core";
@@ -186,15 +184,14 @@ function HelpPanel({
   if (!entry) return null;
 
   return (
-    <div className="flex max-h-[80vh] flex-col">
+    <div
+      className="flex max-h-[80vh] flex-col"
+      data-source={source}
+      data-help-id={helpId}
+    >
       <div className="shrink-0 border-b px-4 py-3">
         <p className="text-[11px] text-muted-foreground">需要的话，可以看这里</p>
-        <div className="mt-1 flex items-start justify-between gap-2">
-          <h3 className="text-base font-semibold break-words">{entry.label}</h3>
-          <Badge variant="outline" className="shrink-0 text-[10px]">
-            {helpSourceLabel(source)}
-          </Badge>
-        </div>
+        <h3 className="mt-1 text-base font-semibold break-words">{entry.label}</h3>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">

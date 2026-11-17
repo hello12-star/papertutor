@@ -1,7 +1,7 @@
-# PaperTutor 架构（M1-C 服务端骨架 + 即时帮助）
+# PaperTutor 架构（M1-D1 服务端骨架 + 帮助 + 导出/历史）
 
-- 分支：`feat/m1c-help`
-- 状态：服务端 provider/API 骨架 + 陌生性预判与即时帮助完成；默认仍走现有 BYOK 路径；未部署线上
+- 分支：`feat/m1d1-export-history`
+- 状态：服务端 provider/API 骨架、即时帮助、离线导出/历史与四步导航完成；默认仍走现有 BYOK 路径；未部署线上
 - 约束：不依赖 Secret、不调用付费 API、`SERVER_MODE` 默认 `false`
 
 ## 1. 默认路径（SERVER_MODE=false）
@@ -138,17 +138,42 @@ SERVER_MODE=true PARSER_PROVIDER=mock LLM_PROVIDER=mock node dev/function-node.m
 - UI：桌面 Popover，移动端 bottom Sheet；只在点击 `?` 时出现，不自动弹窗、不阻断主操作
 - 文案固定为「需要的话，可以看这里」，不使用对用户能力做判断的措辞
 - 限制：每屏最多 5 条、每会话最多 20 条、同一控件最多重生成 1 次
-- 缓存键：`help:answer:v2:{helpId}:{paperHash}:{variant}:v2`
+- 缓存键：`help:answer:v2:{helpId}:{paperHash}:{variant}:v3`
 
 ### 本地验收
 
 - 启动 mock 函数（SERVER_MODE=true / PARSER_PROVIDER=mock / LLM_PROVIDER=mock）
 - 打开 `http://127.0.0.1:6392/?qa=server`
-- 引用校验帮助：命中预生成缓存（来源：缓存）
-- 深度模式帮助：不在结果页前 5，触发现场生成（来源：现场生成）
-- 返回首页后点示例论文帮助：命中首页预生成缓存（来源：缓存）
+- 引用校验帮助：命中预生成缓存（`data-source=cache`）
+- 深度模式帮助：不在结果页前 5，触发现场生成（`data-source=api`）
+- 返回首页后点示例论文帮助：命中首页预生成缓存（`data-source=cache`）
+- 帮助面板不显示内部来源；`data-source` 仅供 QA 检查
 
-## 9. 后续待办（M1-D）
+## 8.1 M1-D1 导出、历史与四步导航
+
+### 四步导航
+
+- 结果页顶部（桌面）/底部（移动端）：速览 → 读原文 → 拆论证 → 自测
+- 点击步骤切换高亮；速览/拆论证/自测滚动到对应 section，读原文打开原文抽屉
+- 自测步骤当前展示根据骨架生成的问题，交互答题仍未上线
+
+### 导出
+
+- `lib/export.ts` 纯函数：
+  - `buildExportMarkdown`：标题、元数据、速览卡、前置知识/术语、阅读路径、论证骨架、引用清单、自测题
+  - `buildOutline`：可复制的大纲
+  - `buildSelfTestQuestions`：根据模块/实验离线生成问题
+- 结果页「导出」菜单：下载 `.md`、复制 Markdown、复制大纲
+- 导出不调用任何外部服务
+
+### 最近分析
+
+- IndexedDB：`papertutor-history` / `records`，按 `paperHash` 去重，保留最近 10 条
+- 记录字段：`paperHash`、`title`、`createdAt`、`doc`、`analysis`
+- 首页「最近分析」支持打开、删除、清空；刷新后仍在
+- 历史记录保存发生在分析结果进入结果页时
+
+## 9. 后续待办（M1-D2）
 
 - DocMind 真实提交/轮询 + 可持久化 job/cache
 - OpenAI 兼容 provider 接入真实 Key（仅服务端）

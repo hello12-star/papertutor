@@ -29,7 +29,7 @@ export type HelpAnswer = {
   example?: string;
 };
 
-export const HELP_PROMPT_VERSION = "v2";
+export const HELP_PROMPT_VERSION = "v3";
 export const REGISTRY_VERSION = "v1";
 
 export const HELP_REGISTRY: HelpEntry[] = [
@@ -147,23 +147,23 @@ export const HELP_REGISTRY: HelpEntry[] = [
     id: "result.selfTest",
     screen: "result",
     label: "自测",
-    description: "计划中的章节自测，用问题检查是否真的读懂。",
+    description: "四步导航中的自测步骤，展示根据骨架生成的问题。",
     baseScore: 0.62,
-    what: "计划中的自测：每节 2–3 个问题，检查是否真的读懂。",
+    what: "四步导航里的自测步骤，当前展示根据论证骨架生成的问题。",
     why: "只看总结容易产生“我懂了”的错觉。",
-    effect: "当前版本尚未开放，不会生成题目。",
-    example: "开放后先做方法模块的自测。",
+    effect: "点自测步骤会滚动到问题列表；当前不会记录答题结果，交互答题即将上线。",
+    example: "先在方法模块的自测里回答输入/输出问题。",
   },
   {
     id: "result.export",
     screen: "result",
     label: "导出",
-    description: "计划中的 Markdown 导出，方便复习和做笔记。",
+    description: "把当前结果导出为 Markdown，或复制 Markdown/大纲。",
     baseScore: 0.4,
-    what: "计划中的导出：把速览、骨架、引用和自测整理成 Markdown。",
+    what: "把当前结果导出为 Markdown：标题、元数据、速览卡、论证骨架、引用、术语和自测题。",
     why: "方便复习、做笔记和带到别处。",
-    effect: "当前版本尚未开放，不会下载文件。",
-    example: "开放后可以把结果粘贴到自己的笔记里。",
+    effect: "打开导出菜单可下载 .md、复制 Markdown 或只复制大纲；数据来自当前分析，不调用外部服务。",
+    example: "导出后把 Markdown 粘贴到自己的笔记里。",
   },
 ];
 

@@ -13,11 +13,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HelpButton } from "@/components/HelpSystem";
+import { RecentHistory } from "@/components/RecentHistory";
+import type { HistoryRecord } from "@/lib/history-core";
 import { cn } from "@/lib/utils";
 
 type Props = {
   onFile: (file: File) => void;
   onOpenSettings: () => void;
+  onOpenHistory: (record: HistoryRecord) => void;
   hasKey: boolean;
   hasMineruToken: boolean;
 };
@@ -43,7 +46,13 @@ const STEPS = [
   },
 ];
 
-export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Props) {
+export function Landing({
+  onFile,
+  onOpenSettings,
+  onOpenHistory,
+  hasKey,
+  hasMineruToken,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -243,6 +252,8 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
           </div>
         ))}
       </section>
+
+      <RecentHistory onOpen={onOpenHistory} />
 
       <section className="mt-10 flex flex-col items-start justify-between gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center">
         <p>不是“AI 替你读完”，而是把读论文的门槛降到你能自己走进去。</p>

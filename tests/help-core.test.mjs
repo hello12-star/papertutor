@@ -35,7 +35,7 @@ const answer = {
 test("help cache key uses required prefix and version", () => {
   assert.equal(
     helpCacheKey("result.citationCheck", "paper-1", "default"),
-    "help:answer:v2:result.citationCheck:paper-1:default:v2",
+    "help:answer:v2:result.citationCheck:paper-1:default:v3",
   );
 });
 
