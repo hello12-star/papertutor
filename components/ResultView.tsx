@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { OriginalSheet } from "@/components/OriginalSheet";
+import { HelpButton } from "@/components/HelpSystem";
 import type {
   Analysis,
   AppError,
@@ -165,6 +166,22 @@ export function ResultView({
             )}
             {stats && stats.total > 0 && <CitationSummary stats={stats} />}
           </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-[10px] text-muted-foreground">学习工具（即将上线）</span>
+            <Button variant="outline" size="sm" disabled>
+              深度模式
+            </Button>
+            <HelpButton helpId="result.deepMode" />
+            <Button variant="outline" size="sm" disabled>
+              自测
+            </Button>
+            <HelpButton helpId="result.selfTest" />
+            <Button variant="outline" size="sm" disabled>
+              导出
+            </Button>
+            <HelpButton helpId="result.export" />
+          </div>
         </div>
 
         <div className="flex max-w-full flex-wrap gap-2">
@@ -305,6 +322,7 @@ function CitationSummary({ stats }: { stats: CitationStats }) {
       >
         结论引用覆盖 {stats.unitsWithVerified}/{stats.units}
       </Badge>
+      <HelpButton helpId="result.citationCheck" />
     </>
   );
 }
@@ -377,11 +395,13 @@ function SectionTitle({
   eyebrow,
   title,
   description,
+  helpId,
 }: {
   index: string;
   eyebrow: string;
   title: string;
   description?: string;
+  helpId?: string;
 }) {
   return (
     <div className="mb-5">
@@ -391,7 +411,10 @@ function SectionTitle({
           {eyebrow}
         </span>
       </div>
-      <h2 className="font-display mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
+      <div className="mt-2 flex items-start justify-between gap-2">
+        <h2 className="font-display text-2xl font-semibold tracking-tight">{title}</h2>
+        {helpId && <HelpButton helpId={helpId} />}
+      </div>
       {description && (
         <p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">{description}</p>
       )}
@@ -407,6 +430,7 @@ function QuickViewSection({ quickview }: { quickview: QuickView }) {
         eyebrow="Quick view"
         title="30 秒速览：这篇论文值不值得深读"
         description="先建立认知地图，再决定从哪一节开始。"
+        helpId="result.quickview"
       />
 
       <div className="overflow-hidden rounded-2xl border bg-card">
@@ -436,6 +460,7 @@ function QuickViewSection({ quickview }: { quickview: QuickView }) {
               <span className="text-[11px] text-muted-foreground">
                 {quickview.prerequisites.length} 项
               </span>
+              <HelpButton helpId="result.prereq" className="ml-auto" />
             </div>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               如果你不熟悉这些概念，先补哪、怎么补都在下面。
@@ -556,6 +581,7 @@ function SkeletonSection({ skeleton }: { skeleton: Analysis["skeleton"] }) {
         eyebrow="Argument map"
         title="论证骨架：这篇论文到底在干什么"
         description="按“问题 → 洞察 → 方法 → 实验 → 局限”逐站推进；每条结论都能展开对照原文。"
+        helpId="result.skeleton"
       />
 
       <div className="relative">
@@ -841,6 +867,7 @@ function RawMarkdown({ markdown, hidden }: { markdown: string; hidden?: boolean 
         eyebrow="Source"
         title="解析出的 Markdown"
         description="这是 MinerU 从 PDF 还原出的结构化文本，所有引用都在这里做逐条比对。"
+        helpId="result.original"
       />
       <div className="rounded-2xl border bg-card">
         <button

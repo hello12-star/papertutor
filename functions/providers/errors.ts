@@ -3,7 +3,9 @@ export type ProviderErrorCode =
   | "LLM_UPSTREAM_ERROR"
   | "LLM_EMPTY_RESPONSE"
   | "DOCMIND_NOT_CONFIGURED"
-  | "PARSER_NOT_IMPLEMENTED";
+  | "PARSER_NOT_IMPLEMENTED"
+  | "INVALID_HELP_JSON"
+  | "MOCK_PROVIDER_FORBIDDEN";
 
 export class ProviderError extends Error {
   code: ProviderErrorCode;

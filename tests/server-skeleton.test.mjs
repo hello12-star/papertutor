@@ -16,6 +16,7 @@ const ENV_KEYS = [
   "LLM_MODEL",
   "PROMPT_VERSION",
   "MAX_UPLOAD_MB",
+  "NODE_ENV",
 ];
 
 function resetEnv(values = {}) {
@@ -170,4 +171,147 @@ test("error codes cover bad input, missing job and missing doc", async () => {
   const missingJob = await call("/api/jobs/missing-job", { method: "GET" });
   assert.equal(missingJob.response.status, 404);
   assert.equal(missingJob.body.code, "JOB_NOT_FOUND");
+});
+test("help predict returns scores in range and sorted", async () => {
+  resetEnv({ SERVER_MODE: "true", LLM_PROVIDER: "mock" });
+  const landing = await call("/api/help/predict", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ screen: "landing", paperHash: "paper-1" }),
+  });
+  assert.equal(landing.response.status, 200);
+  assert.ok(landing.body.items.length > 0);
+  assert.ok(landing.body.items.some((item) => item.helpId === "landing.samplePaper"));
+  for (const item of landing.body.items) {
+    assert.ok(item.unfamiliarity >= 0 && item.unfamiliarity <= 1);
+  }
+  const scores = landing.body.items.map((item) => item.unfamiliarity);
+  assert.deepEqual(scores, [...scores].sort((a, b) => b - a));
+
+  const result = await call("/api/help/predict", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ screen: "result", paperHash: "paper-1" }),
+  });
+  assert.equal(result.response.status, 200);
+  assert.ok(result.body.items.some((item) => item.helpId === "result.citationCheck"));
+  assert.ok(result.body.items.every((item) => item.helpId.startsWith("result.")));
+});
+
+test("help answer mock returns three parts and supports variants", async () => {
+  resetEnv({ SERVER_MODE: "true", LLM_PROVIDER: "mock" });
+  const answer = await call("/api/help/answer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      helpId: "result.citationCheck",
+      variant: "default",
+      paperHash: "paper-1",
+    }),
+  });
+  assert.equal(answer.response.status, 200);
+  assert.equal(answer.body.provider, "mock-help");
+  assert.ok(answer.body.answer.what.length > 0);
+  assert.ok(answer.body.answer.why.length > 0);
+  assert.ok(answer.body.answer.effect.length > 0);
+
+  const example = await call("/api/help/answer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      helpId: "result.deepMode",
+      variant: "example",
+      paperHash: "paper-1",
+    }),
+  });
+  assert.equal(example.response.status, 200);
+  assert.ok(example.body.answer.example.length > 0);
+
+  const unknown = await call("/api/help/answer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ helpId: "nope", paperHash: "paper-1" }),
+  });
+  assert.equal(unknown.response.status, 400);
+  assert.equal(unknown.body.code, "UNKNOWN_HELP_ID");
+});
+
+test("help predict with missing LLM env never calls outbound fetch", async () => {
+  resetEnv({ SERVER_MODE: "true", LLM_PROVIDER: "auto" });
+  let fetchCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error("unexpected outbound fetch");
+  };
+  try {
+    const { response, body } = await call("/api/help/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ screen: "landing", paperHash: "paper-1" }),
+    });
+    assert.equal(response.status, 503);
+    assert.equal(body.code, "LLM_NOT_CONFIGURED");
+    assert.equal(fetchCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("help mock performs 0 outbound calls", async () => {
+  resetEnv({ SERVER_MODE: "true", LLM_PROVIDER: "mock" });
+  let fetchCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error("unexpected outbound fetch");
+  };
+  try {
+    const predicted = await call("/api/help/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ screen: "result", paperHash: "paper-1" }),
+    });
+    assert.equal(predicted.response.status, 200);
+    const answered = await call("/api/help/answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ helpId: "result.citationCheck", paperHash: "paper-1" }),
+    });
+    assert.equal(answered.response.status, 200);
+    assert.equal(fetchCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production rejects mock providers", async () => {
+  resetEnv({
+    SERVER_MODE: "true",
+    PARSER_PROVIDER: "mock",
+    LLM_PROVIDER: "mock",
+    NODE_ENV: "production",
+  });
+  let fetchCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error("unexpected outbound fetch");
+  };
+  try {
+    const parsed = await call("/api/parse", pdfRequest([21, 22, 23]));
+    assert.equal(parsed.response.status, 500);
+    assert.equal(parsed.body.code, "MOCK_PROVIDER_FORBIDDEN");
+
+    const help = await call("/api/help/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ screen: "landing", paperHash: "paper-1" }),
+    });
+    assert.equal(help.response.status, 500);
+    assert.equal(help.body.code, "MOCK_PROVIDER_FORBIDDEN");
+    assert.equal(fetchCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

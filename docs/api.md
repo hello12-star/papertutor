@@ -1,4 +1,4 @@
-# PaperTutor API（M1-B 服务端骨架）
+# PaperTutor API（M1-C 服务端骨架 + 帮助）
 
 ## 入口与开关
 
@@ -96,6 +96,80 @@
 - `DOC_NOT_FOUND`（404）：docId 不存在
 - `INVALID_ANALYSIS_JSON`（502）：模型输出不是包含 quickview/skeleton 的 JSON
 
+## POST /api/help/predict
+
+请求：
+
+```json
+{ "screen": "landing", "paperHash": "paper-1" }
+```
+
+响应：
+
+```json
+{
+  "ok": true,
+  "provider": "mock-help",
+  "promptVersion": "v2",
+  "items": [
+    {
+      "helpId": "landing.samplePaper",
+      "unfamiliarity": 0.86,
+      "reason": "根据当前页面与控件状态估计",
+      "suggestedQuestion": "这个「示例论文」是做什么的？"
+    }
+  ]
+}
+```
+
+- items 按 `unfamiliarity` 降序，分数限制在 0–1
+- `screen` 仅支持 `landing` / `result`，否则 `INVALID_REQUEST`（400）
+- 无 LLM Key 且非 mock：`LLM_NOT_CONFIGURED`（503），未发起外网请求
+- mock provider 不发起任何外网请求
+
+## POST /api/help/answer
+
+请求：
+
+```json
+{
+  "helpId": "result.citationCheck",
+  "variant": "default",
+  "paperHash": "paper-1"
+}
+```
+
+- `variant`: `default` | `simpler` | `example`
+
+响应：
+
+```json
+{
+  "ok": true,
+  "provider": "mock-help",
+  "promptVersion": "v2",
+  "answer": {
+    "helpId": "result.citationCheck",
+    "variant": "default",
+    "what": "这是什么",
+    "why": "为什么需要",
+    "effect": "点了会发生什么",
+    "example": "可选的例子"
+  }
+}
+```
+
+- 未知 helpId：`UNKNOWN_HELP_ID`（400）
+- 无 LLM Key 且非 mock：`LLM_NOT_CONFIGURED`（503），未发起外网请求
+- 模型输出不合法：`INVALID_HELP_JSON`（502）
+
+## 帮助缓存与限制
+
+- 客户端缓存键：`help:answer:v2:{helpId}:{paperHash}:{variant}:v2`
+- IndexedDB：`papertutor-help` / `answers`
+- 每屏最多 5 条预生成、每会话最多 20 条、同一控件最多重生成 1 次
+- 预生成：landing 前 3、result 前 5，分数 ≥0.55，至少 1 条；并发 1
+
 ## 缓存键
 
 ```
@@ -119,8 +193,11 @@ analysis:v1:{docId}:{mode}:{promptVersion}:{model}
 | `LLM_UPSTREAM_ERROR` | 502 | LLM 上游错误 |
 | `LLM_EMPTY_RESPONSE` | 502 | LLM 空响应 |
 | `INVALID_ANALYSIS_JSON` | 502 | 分析 JSON 不合法 |
-| `INVALID_REQUEST` | 400 | 缺少 docId |
+| `INVALID_REQUEST` | 400 | 缺少字段或 screen 非法 |
 | `INVALID_MODE` | 400 | mode 非法 |
+| `UNKNOWN_HELP_ID` | 400 | helpId 不在 registry |
+| `INVALID_HELP_JSON` | 502 | 帮助 JSON 不合法 |
+| `MOCK_PROVIDER_FORBIDDEN` | 500 | production 环境禁止 mock provider |
 | `DOC_NOT_FOUND` | 404 | docId 不存在 |
 | `JOB_NOT_FOUND` | 404 | jobId 不存在 |
 | `INTERNAL_ERROR` | 500 | 未分类异常 |
@@ -138,6 +215,17 @@ analysis:v1:{docId}:{mode}:{promptVersion}:{model}
 | `ALIYUN_ACCESS_KEY_ID` / `ALIYUN_ACCESS_KEY_SECRET` | 空 | DocMind 凭证（只放服务端） |
 | `LLM_BASE_URL` | 百炼兼容地址 | OpenAI 兼容 Base URL |
 | `LLM_MODEL` | `qwen-plus` | 默认模型 |
+| `NODE_ENV` | 未设置 | 为 `production` 时禁止 mock provider |
+
+## 生产保护
+
+`NODE_ENV=production` 时，以下任一配置会直接返回
+`500 MOCK_PROVIDER_FORBIDDEN`，不会发起外网请求：
+
+- `PARSER_PROVIDER=mock`
+- `LLM_PROVIDER=mock`
+
+本地 mock 验收必须不设置 `NODE_ENV=production`。
 
 ## 本地 mock 验收
 
@@ -151,11 +239,13 @@ SERVER_MODE=true PARSER_PROVIDER=mock LLM_PROVIDER=mock node dev/function-node.m
 
 打开 `http://127.0.0.1:6392/?qa=server`，会执行
 `parse → jobs/:id → analyze`，并把 QA 夹具结果送入现有结果页。
+帮助验收：在结果页点「引用校验」的 ?（缓存），点「深度模式」的 ?（现场生成），
+回到首页点「示例论文」的 ?（首页预生成缓存）。
 
 测试：
 
 ```bash
-npm test          # 5 个服务端骨架测试
+npm test          # 18 个服务端/帮助测试
 npm run build     # 前端构建 + tsc
 ```
 

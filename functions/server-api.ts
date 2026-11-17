@@ -1,6 +1,8 @@
 import { readEnv, serverModeEnabled } from "./providers/env.ts";
 import { ProviderError } from "./providers/errors.ts";
 import { getLlmProvider, getParserProvider, promptVersion } from "./providers/index.ts";
+import { ApiError, json } from "./http.ts";
+import { handleHelpAnswer, handleHelpPredict } from "./help/api.ts";
 
 type JobStatus = "queued" | "running" | "succeeded" | "failed";
 
@@ -27,28 +29,6 @@ type DocRecord = {
 const jobs = new Map<string, Job>();
 const docs = new Map<string, DocRecord>();
 const analyses = new Map<string, unknown>();
-
-class ApiError extends Error {
-  code: string;
-  status: number;
-
-  constructor(code: string, message: string, status = 400) {
-    super(message);
-    this.name = "ApiError";
-    this.code = code;
-    this.status = status;
-  }
-}
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
-}
 
 export function parseCacheKey(sha256: string): string {
   return `parse:v1:${sha256}`;
@@ -302,6 +282,12 @@ export async function handleServerApi(
     }
     if (path === "/api/analyze" && request.method === "POST") {
       return await handleAnalyze(request);
+    }
+    if (path === "/api/help/predict" && request.method === "POST") {
+      return await handleHelpPredict(request);
+    }
+    if (path === "/api/help/answer" && request.method === "POST") {
+      return await handleHelpAnswer(request);
     }
     if (path.startsWith("/api/jobs/") && request.method === "GET") {
       return handleJob(path.slice("/api/jobs/".length));

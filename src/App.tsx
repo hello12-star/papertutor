@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HelpScope } from "@/components/HelpSystem";
 import { Landing } from "@/components/Landing";
 import { ProgressView } from "@/components/ProgressView";
 import { ResultView } from "@/components/ResultView";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { generateQuickview, generateSkeleton, assembleAnalysis, verifyCitations } from "@/lib/analysis";
 import { cacheAnalysis, cacheDoc, clearCache, getCachedAnalysis, getCachedDoc } from "@/lib/cache";
+import { clearHelpCache } from "@/lib/help-cache";
 import { countPdfPages, formatBytes, sha256Hex } from "@/lib/files";
 import { LlmError } from "@/lib/llm";
 import { verifyModel } from "@/lib/model-check";
@@ -487,12 +489,14 @@ export default function App() {
 
       <div className="relative z-10">
         {view === "landing" && (
-          <Landing
-            onFile={(file) => void start(file)}
-            onOpenSettings={() => setSettingsOpen(true)}
-            hasKey={hasKey}
-            hasMineruToken={hasMineruToken}
-          />
+          <HelpScope screen="landing" paperHash="landing">
+            <Landing
+              onFile={(file) => void start(file)}
+              onOpenSettings={() => setSettingsOpen(true)}
+              hasKey={hasKey}
+              hasMineruToken={hasMineruToken}
+            />
+          </HelpScope>
         )}
 
         {view === "working" && (
@@ -507,19 +511,21 @@ export default function App() {
         )}
 
         {view === "result" && doc && (
-          <ResultView
-            doc={doc}
-            analysis={analysis}
-            stats={stats}
-            error={error}
-            generating={generating}
-            cacheHit={cacheHit}
-            hasKey={hasKey}
-            diagnostics={{ model: settings.model, baseUrl: settings.baseUrl }}
-            onRegenerate={regenerate}
-            onOpenSettings={() => setSettingsOpen(true)}
-            onBack={resetToLanding}
-          />
+          <HelpScope screen="result" paperHash={doc.hash}>
+            <ResultView
+              doc={doc}
+              analysis={analysis}
+              stats={stats}
+              error={error}
+              generating={generating}
+              cacheHit={cacheHit}
+              hasKey={hasKey}
+              diagnostics={{ model: settings.model, baseUrl: settings.baseUrl }}
+              onRegenerate={regenerate}
+              onOpenSettings={() => setSettingsOpen(true)}
+              onBack={resetToLanding}
+            />
+          </HelpScope>
         )}
       </div>
 
@@ -535,7 +541,10 @@ export default function App() {
         onOpenChange={setSettingsOpen}
         settings={settings}
         onSave={onSaveSettings}
-        onClearCache={() => void clearCache()}
+        onClearCache={() => {
+          void clearCache();
+          void clearHelpCache();
+        }}
       />
     </div>
   );

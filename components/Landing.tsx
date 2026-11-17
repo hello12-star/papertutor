@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { HelpButton } from "@/components/HelpSystem";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -128,7 +129,12 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
                 <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
                   Upload
                 </p>
-                <h2 className="font-display mt-1 text-2xl font-semibold break-words">上传一篇论文</h2>
+                <div className="flex items-center gap-1.5">
+                  <h2 className="font-display mt-1 text-2xl font-semibold break-words">
+                    上传一篇论文
+                  </h2>
+                  <HelpButton helpId="landing.upload" />
+                </div>
               </div>
               <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <UploadCloud className="size-5" />
@@ -157,7 +163,23 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
               }}
             />
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-[11px] text-muted-foreground">没有现成论文？</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (import.meta.env.DEV) window.location.href = "/?qa=m1a";
+                }}
+                disabled={!import.meta.env.DEV}
+              >
+                示例论文
+              </Button>
+              <HelpButton helpId="landing.samplePaper" />
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               <Badge variant="secondary" className="font-normal">
                 ≤ 10MB / 20 页 · 免 Token
               </Badge>
@@ -167,6 +189,7 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
               <Badge variant="secondary" className="font-normal">
                 同文件本地缓存
               </Badge>
+              <HelpButton helpId="landing.parseMode" />
             </div>
 
             <div className="mt-5 flex items-center gap-3">
@@ -197,9 +220,13 @@ export function Landing({ onFile, onOpenSettings, hasKey, hasMineruToken }: Prop
               </Button>
             </div>
 
-            <p className="mt-4 text-[11px] leading-5 text-muted-foreground">
-              解析用时通常 15–60 秒。同一个文件会命中本地缓存，不会重复消耗 MinerU 额度。
-            </p>
+            <div className="mt-4 flex items-start justify-between gap-2">
+              <p className="flex-1 text-[11px] leading-5 text-muted-foreground">
+                解析用时通常 15–60 秒。同一个文件会命中本地缓存，不会重复消耗 MinerU
+                额度。
+              </p>
+              <HelpButton helpId="landing.privacy" />
+            </div>
           </div>
         </section>
       </div>

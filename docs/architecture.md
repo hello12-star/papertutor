@@ -1,7 +1,7 @@
-# PaperTutor 架构（M1-B 服务端骨架）
+# PaperTutor 架构（M1-C 服务端骨架 + 即时帮助）
 
-- 分支：`feat/m1b-server-skeleton`
-- 状态：服务端 provider 与 API 骨架完成；默认仍走现有 BYOK 路径；未部署线上
+- 分支：`feat/m1c-help`
+- 状态：服务端 provider/API 骨架 + 陌生性预判与即时帮助完成；默认仍走现有 BYOK 路径；未部署线上
 - 约束：不依赖 Secret、不调用付费 API、`SERVER_MODE` 默认 `false`
 
 ## 1. 默认路径（SERVER_MODE=false）
@@ -106,10 +106,53 @@ SERVER_MODE=true PARSER_PROVIDER=mock LLM_PROVIDER=mock node dev/function-node.m
 - `npm test` → 5 个服务端骨架测试
 - `npm run build` → 前端构建（含 tsc）
 
-## 8. M1-C 待办
+## 8. 帮助系统（M1-C）
+
+### Registry 与控件
+
+- 单一来源：`functions/help/registry.ts`，前后端共用
+- 覆盖 12 个控件：
+  - landing：示例论文、PDF 上传、解析模式、隐私说明
+  - result：速览卡、引用校验、论证骨架、前置知识、原文对照、深度模式、自测、导出
+- 每条包含 label、description、默认分数、三段式静态说明（这是什么 / 为什么需要 / 点了会发生什么）
+
+### 服务端
+
+- `POST /api/help/predict`：返回控件 `unfamiliarity`（0–1）、reason、suggestedQuestion
+- `POST /api/help/answer`：返回三段式帮助，支持 `default | simpler | example`
+- provider：
+  - `LLM_PROVIDER=mock` → `mock-help`，纯静态，无外网
+  - 否则 → `llm-help`，通过 OpenAI 兼容 provider 生成；缺 Key 返回 `LLM_NOT_CONFIGURED`，fetch 前抛错
+- 生产保护：`NODE_ENV=production` 时，`PARSER_PROVIDER=mock` 或 `LLM_PROVIDER=mock` 直接返回
+  `MOCK_PROVIDER_FORBIDDEN`，防止 mock 误上线
+
+### 客户端
+
+- `HelpScope` 在 landing/result 页面空闲 700ms 后调用 predict：
+  - landing 取前 3，result 取前 5，分数 ≥0.55 才预生成，至少保留 1 条
+  - 预生成逐条并发 1，写入 IndexedDB `papertutor-help`
+- `HelpButton` 点击：
+  - 先读缓存 → 命中立即显示（来源：缓存）
+  - 未命中 → 调 `/api/help/answer`（来源：现场生成）
+  - 失败/超时 → 使用 registry 静态说明（来源：内置说明）
+- UI：桌面 Popover，移动端 bottom Sheet；只在点击 `?` 时出现，不自动弹窗、不阻断主操作
+- 文案固定为「需要的话，可以看这里」，不使用对用户能力做判断的措辞
+- 限制：每屏最多 5 条、每会话最多 20 条、同一控件最多重生成 1 次
+- 缓存键：`help:answer:v2:{helpId}:{paperHash}:{variant}:v2`
+
+### 本地验收
+
+- 启动 mock 函数（SERVER_MODE=true / PARSER_PROVIDER=mock / LLM_PROVIDER=mock）
+- 打开 `http://127.0.0.1:6392/?qa=server`
+- 引用校验帮助：命中预生成缓存（来源：缓存）
+- 深度模式帮助：不在结果页前 5，触发现场生成（来源：现场生成）
+- 返回首页后点示例论文帮助：命中首页预生成缓存（来源：缓存）
+
+## 9. 后续待办（M1-D）
 
 - DocMind 真实提交/轮询 + 可持久化 job/cache
 - OpenAI 兼容 provider 接入真实 Key（仅服务端）
 - 预算、限流、Origin 校验、密钥注销
 - 移除 M0 `debug.*` 端点
 - 服务端 citation 验证与分段生成
+- 真实 DocMind 与真实 LLM 端到端
