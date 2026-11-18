@@ -1,8 +1,9 @@
 # PaperTutor P0 验收清单与测试映射
 
-> 基线分支：`feat/m1e2-docs-audit`（从 `feat/m1e1-cancel-retry` 9e9403c 新建）。
-> 当前自动化结果：`npm test` **41/41 通过**；`npm run build` 通过（前端 `tsc --noEmit` + Vite）；函数侧 `tsc` 通过。
-> 本文区分三类证据：**自动化测试**（`node --test`）、**浏览器验收**（Playwright + Edge，脚本为临时 QA，不入库）、**未验证**（需要真实环境或人工）。
+> 基线分支：`feat/m1e3-quality-gate`（从 `feat/m1e2-docs-audit` a2349a7 新建）。
+> 当前质量门禁：`npm test` **41/41 通过**；`npm run lint` **0 error / 1 warning**；`npm run test:e2e` **6/6 通过**；`npm run build` 通过（前端 `tsc --noEmit` + Vite）；函数侧 `tsc` 通过。
+> Lighthouse：移动端 **96 / 95 / 100**，桌面端 **100 / 95 / 100**（Performance / Accessibility / Best Practices）。
+> 本文区分四类证据：**自动化测试**（`node --test`）、**lint**（ESLint）、**Playwright e2e**（仓库内 `e2e/`，系统 Edge）、**未验证**（需要真实环境或人工）。临时 `/tmp/qa` 仍用于额外的移动端/性能检查。
 
 ## 1. 自动化测试总览
 
@@ -21,13 +22,16 @@
 
 ```bash
 npm test
+npm run lint
+npm run test:e2e
+npm run fixture:pdf
 npm run build
 npx tsc --noEmit --allowImportingTsExtensions --strict \
   --lib ES2022,DOM --module ESNext --moduleResolution Bundler \
   --target ES2022 --skipLibCheck functions/handler.ts
 ```
 
-说明：项目当前**没有 lint 脚本**；`npm run build` 只包含前端 `tsc --noEmit` 与 Vite 构建。Playwright 浏览器脚本放在临时目录 `/tmp/qa`，未纳入 CI。
+说明：`npm run lint` 使用 `eslint.config.mjs`，覆盖 `src/components/lib/functions/tests`（以及 `e2e`、`dev`、`scripts`、`hooks`）；当前 0 error，唯一 warning 是 `components/ui/combobox.tsx` 的未使用参数。`npm run test:e2e` 使用系统 Edge（Playwright `channel: "msedge"`）和 `e2e/fixtures/ten-pages.pdf`，已入仓但尚未接 CI。
 
 ## 2. P0 验收项与现有证据
 
@@ -41,7 +45,7 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | 方法流程图、实验-结论表、公式卡桌面和移动可读 | `study-tools`：公式提取 | Track B：流程图、实验表、公式卡；M1-E2：320–430 无横向滚动 | 部分覆盖；无 DOM/视觉回归测试 |
 | 前端 bundle/localStorage/网络无密钥；付费接口只允许本站 Origin；无公开免鉴权代理；无 CORS `*` | `demo-papers`：示例 JSON 无密钥字段；`server-skeleton`：生产拒绝 mock | Track B/M1-E1 bundle 审计：QA 夹具/mock-llm/env 名均 0；`debug.env` 只读检查 | **部署后 Origin/CORS/网络请求未验证**；无自动化密钥扫描 |
 | 模拟超预算 402；模拟停服 503；3 篇成本写入 `docs/cost.md`；每日上限生效 | `budget`：503/402/429/跨日；`server-skeleton`：SERVICE_ENABLED 503、预算 402 无 LLM fetch | [docs/cost.md](cost.md) 已完成估算 | 逻辑通过；**每日上限仍是进程内 mock，未持久化** |
-| build/lint/typecheck/Playwright 冒烟；320/360/390/414 无横向滚动；Lighthouse 阈值 | `npm run build`（tsc + Vite）通过 | M1-E2：320/360/390/414/430 四类页面 scrollWidth==clientWidth、0 console error；见 [docs/m1e2/mobile-qa.json](m1e2/mobile-qa.json) | **lint、Playwright CI、Lighthouse 未完成** |
+| build/lint/typecheck/Playwright 冒烟；320/360/390/414 无横向滚动；Lighthouse 阈值 | `npm run build`（tsc + Vite）通过；`npm run lint` 0 error/1 warning；`npm run test:e2e` 6/6 | M1-E2：320/360/390/414/430 四类页面 scrollWidth==clientWidth、0 console error；E2E：desktop 1440 + mobile 390 的示例/失败/取消；Lighthouse：移动 96/95/100，桌面 100/95/100 | **已补齐**；Playwright 尚未接 CI |
 
 > M1-E2 元素扫描中，进度条内部填充元素出现负 `left`（进度为 0 时的 transform），其父容器 `overflow-hidden`，页面 `scrollWidth` 未变化；不计为页面横向滚动。
 
@@ -69,15 +73,14 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 
 ## 4. 其他仍需补齐的项
 
-- **Lighthouse**：移动端 Performance/Accessibility/Best Practices ≥85、桌面 ≥90 尚未跑。
-- **lint**：项目没有 lint 脚本，P0 的 lint 要求尚未满足。
-- **Playwright 正式化**：当前浏览器脚本是 `/tmp/qa` 的临时脚本；没有纳入仓库/CI，也没有固定 10 页 PDF fixture。
+- **Playwright CI**：`e2e/` 已入仓（6/6 通过），但尚未接入 CI；`/tmp/qa` 仍保留额外的移动端/性能脚本。
 - **真实论文引用定位**：M1-A 和 Track B 主要验证夹具/示例；真实论文的 100% 定位/高亮仍需抽样。
 - **帮助延迟**：<200ms / <6s 没有自动化计时；需要浏览器 Performance 计时。
 - **四步刷新保留**：M1-D1 验证了导航/历史，但没有自动化断言“刷新后进度保留”。
 - **预算持久化**：`functions/budget.ts` 是进程内计数，冷启动重置；上线前必须改为持久化。
 - **真实 DocMind smoke**：Secret 仍为 false；`PARSER_NOT_IMPLEMENTED` 仍未替换为真实提交/轮询。
-- **真实移动设备**：M1-E2 使用 Edge 模拟视口；未在 iOS Safari/Android Chrome 真机验证。
+- **真实移动设备**：M1-E2/M1-E3 使用 Edge 模拟视口；未在 iOS Safari/Android Chrome 真机验证。
+- **真实 LLM/DocMind/部署**：见第 3 节，仍未验证。
 
 ## 5. 证据索引
 
@@ -88,10 +91,27 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | M1-E2 320/360/390/414/430 四类页面截图与 JSON | [docs/m1e2/](m1e2/) |
 | 3 篇示例成本估算 | [docs/cost.md](cost.md) |
 | 引用定位/响应式历史证据 | `docs/m1a/`、`docs/m1d1/` |
-| 测试命令与结果 | `npm test`（41/41）、`npm run build`、函数侧 `tsc` |
+| M1-E3 lint 输出 | [docs/m1e3/lint-output.txt](m1e3/lint-output.txt) |
+| M1-E3 Playwright 输出 | [docs/m1e3/e2e-output.txt](m1e3/e2e-output.txt) |
+| M1-E3 Lighthouse JSON + 汇总 | [docs/m1e3/lighthouse-mobile.json](m1e3/lighthouse-mobile.json)、[docs/m1e3/lighthouse-desktop.json](m1e3/lighthouse-desktop.json)、[docs/m1e3/lighthouse-summary.json](m1e3/lighthouse-summary.json) |
+| 10 页 PDF fixture / 生成脚本 | [e2e/fixtures/ten-pages.pdf](../e2e/fixtures/ten-pages.pdf)、[e2e/fixtures/generate-ten-pages.mjs](../e2e/fixtures/generate-ten-pages.mjs) |
+| 测试命令与结果 | `npm test`（41/41）、`npm run lint`、`npm run test:e2e`（6/6）、`npm run build`、函数侧 `tsc` |
 
 ## 6. 结论
 
-- **已达到自动化/本地证据**：示例演示、引用校验（示例）、帮助缓存/回退、预算 402/503、解析取消/重试、学习报告、320–430 无横向滚动。
-- **不能宣称已达到**：真实 MinerU、真实 LLM、部署后的 Origin/超时/流式、Lighthouse、lint、Playwright CI。
-- 比赛提交前，至少应完成第 3 节三项真实环境验证，并补齐 Lighthouse 与 lint；否则应在验收说明中明确标注“本地/mock 验证”。
+- **已达到自动化/本地证据**：示例演示、引用校验（示例）、帮助缓存/回退、预算 402/503、解析取消/重试、学习报告、320–430 无横向滚动、lint 0 error、Playwright 6/6、Lighthouse 移动/桌面达标。
+- **不能宣称已达到**：真实 MinerU、真实 LLM、部署后的 Origin/超时/流式、Playwright CI、真实移动设备。
+- 比赛提交前，至少应完成第 3 节三项真实环境验证；否则应在验收说明中明确标注“本地/mock 验证”。
+
+## 7. M1-E3 质量门禁结果（2026-11-18）
+
+| 项 | 命令 | 结果 | 证据 |
+|---|---|---|---|
+| ESLint | `npm run lint` | **0 error / 1 warning**（`components/ui/combobox.tsx` 未使用参数） | [lint-output.txt](m1e3/lint-output.txt) |
+| Playwright | `npm run test:e2e` | **6/6 pass**：desktop 1440 + mobile 390；示例页、解析失败重试、解析中取消 | [e2e-output.txt](m1e3/e2e-output.txt)、[e2e/app.spec.ts](../e2e/app.spec.ts) |
+| Lighthouse 移动 | `CHROME_PATH=... npx lighthouse http://127.0.0.1:6394/ --only-categories=performance,accessibility,best-practices --form-factor=mobile --output=json --output-path=docs/m1e3/lighthouse-mobile.json --chrome-flags="--headless=new --no-sandbox --disable-gpu" --quiet` | **Performance 96 / Accessibility 95 / Best Practices 100**，LCP 2.2s，TBT 140ms | [lighthouse-mobile.json](m1e3/lighthouse-mobile.json) |
+| Lighthouse 桌面 | 同上，改为 `--preset=desktop`，输出 `lighthouse-desktop.json` | **Performance 100 / Accessibility 95 / Best Practices 100**，LCP 0.5s，TBT 0ms | [lighthouse-desktop.json](m1e3/lighthouse-desktop.json) |
+
+- 目标：移动三项 ≥85，桌面 ≥90；**两项均达标**。
+- Lighthouse 审计 URL 为 production preview 的首页 `http://127.0.0.1:6394/`；preview 命令 `npm run preview -- --port 6394 --strictPort`，使用系统 Edge（`C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`）。
+- 10 页 PDF fixture 由 [generate-ten-pages.mjs](../e2e/fixtures/generate-ten-pages.mjs) 生成，当前 3,165 字节、10 页；`npm run fixture:pdf` 可重建。

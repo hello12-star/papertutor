@@ -1,0 +1,15 @@
+
+> qoder-site-react-starter@0.1.0 test:e2e
+> playwright test
+
+
+Running 6 tests using 1 worker
+
+  ok 1 [desktop] › e2e\app.spec.ts:58:1 › demo opens with pre-generated study tools (2.8s)
+  ok 2 [desktop] › e2e\app.spec.ts:71:1 › parse failure shows retry without real MinerU (2.3s)
+  ok 3 [desktop] › e2e\app.spec.ts:82:1 › parse progress shows cancel and returns to upload (4.7s)
+  ok 4 [mobile] › e2e\app.spec.ts:58:1 › demo opens with pre-generated study tools (1.9s)
+  ok 5 [mobile] › e2e\app.spec.ts:71:1 › parse failure shows retry without real MinerU (2.1s)
+  ok 6 [mobile] › e2e\app.spec.ts:82:1 › parse progress shows cancel and returns to upload (4.5s)
+
+  6 passed (30.7s)

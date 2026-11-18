@@ -1,0 +1,30 @@
+{
+  "capturedAt": "2026-11-18",
+  "lighthouseVersion": "12.8.2",
+  "url": "http://127.0.0.1:6394/",
+  "previewCommand": "npm run preview -- --port 6394 --strictPort",
+  "chromePath": "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+  "targets": {
+    "mobile": 85,
+    "desktop": 90
+  },
+  "mobile": {
+    "performance": 96,
+    "accessibility": 95,
+    "bestPractices": 100,
+    "lcp": "2.2 s",
+    "cls": "0",
+    "tbt": "140 ms",
+    "report": "docs/m1e3/lighthouse-mobile.json"
+  },
+  "desktop": {
+    "performance": 100,
+    "accessibility": 95,
+    "bestPractices": 100,
+    "lcp": "0.5 s",
+    "cls": "0",
+    "tbt": "0 ms",
+    "report": "docs/m1e3/lighthouse-desktop.json"
+  },
+  "result": "pass"
+}
