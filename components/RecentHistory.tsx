@@ -25,7 +25,7 @@ export function RecentHistory({ onOpen }: { onOpen: (record: HistoryRecord) => v
   };
 
   const clearAll = async () => {
-    if (!window.confirm("清空最近分析记录？本机保存的标题、分析与原文将一并删除。")) return;
+    if (!window.confirm("清空最近分析记录？本机保存的标题、分析、原文与阅读进度将一并删除。")) return;
     await clearHistory();
     await load();
   };

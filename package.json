@@ -17,6 +17,7 @@
     "test": "node --test tests/server-skeleton.test.mjs tests/help-core.test.mjs tests/export-history.test.mjs tests/demo-papers.test.mjs tests/study-tools.test.mjs tests/budget.test.mjs tests/parse-control.test.mjs",
     "lint": "eslint .",
     "test:e2e": "playwright test",
+    "measure:help": "node scripts/measure-help-latency.mjs",
     "fixture:pdf": "node e2e/fixtures/generate-ten-pages.mjs",
     "test:server": "node --test tests/server-skeleton.test.mjs",
     "test:help": "node --test tests/help-core.test.mjs",

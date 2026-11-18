@@ -3,6 +3,7 @@ import {
   Fragment,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -48,6 +49,11 @@ import {
   downloadText,
 } from "@/lib/export";
 import { extractFormulaCards } from "@/lib/formulas";
+import {
+  getProgress,
+  saveProgress,
+  type ReadingStep,
+} from "@/lib/history-db";
 import { buildLearningReport, learningReportFileName } from "@/lib/report";
 import { buildSelfTestItems, type SelfTestItem } from "@/lib/self-test";
 import type {
@@ -90,7 +96,7 @@ const NAV = [
   { id: "limitations", label: "局限", index: "05" },
 ];
 
-type StepId = "quickview" | "original" | "skeleton" | "selfTest";
+type StepId = ReadingStep;
 
 const STEP_ITEMS = [
   { id: "quickview" as const, label: "速览", icon: Compass },
@@ -119,13 +125,56 @@ export function ResultView({
   const [activeStep, setActiveStep] = useState<StepId>("quickview");
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const [selfTestRevealed, setSelfTestRevealed] = useState<Set<string>>(new Set<string>());
+  const [progressLoaded, setProgressLoaded] = useState(false);
+  const progressTouchedRef = useRef(false);
+  const progressHashRef = useRef(doc.hash);
   const selfTestItems = analysis ? buildSelfTestItems(analysis) : [];
+  const validRevealedIds = selfTestItems
+    .filter((item) => selfTestRevealed.has(item.id))
+    .map((item) => item.id);
 
   useEffect(() => {
+    let cancelled = false;
+    progressHashRef.current = doc.hash;
+    progressTouchedRef.current = false;
+    setProgressLoaded(false);
+    setActiveStep("quickview");
     setSelfTestRevealed(new Set<string>());
+    void getProgress(doc.hash)
+      .then((saved) => {
+        if (cancelled) return;
+        if (saved && !progressTouchedRef.current) {
+          setActiveStep(saved.activeStep);
+          setSelfTestRevealed(new Set(saved.revealedSelfTestIds));
+        }
+        setProgressLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setProgressLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [doc.hash]);
 
+  useEffect(() => {
+    if (
+      !progressLoaded ||
+      !progressTouchedRef.current ||
+      progressHashRef.current !== doc.hash
+    ) {
+      return;
+    }
+    void saveProgress({
+      paperHash: doc.hash,
+      activeStep,
+      revealedSelfTestIds: Array.from(selfTestRevealed),
+      updatedAt: Date.now(),
+    });
+  }, [doc.hash, activeStep, selfTestRevealed, progressLoaded]);
+
   const toggleSelfTest = (id: string) => {
+    progressTouchedRef.current = true;
     setSelfTestRevealed((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
@@ -135,6 +184,7 @@ export function ResultView({
   };
 
   const locateCitation = (citation: Citation) => {
+    progressTouchedRef.current = true;
     setLocateTarget(citation);
     setActiveStep("original");
   };
@@ -145,6 +195,7 @@ export function ResultView({
   };
 
   const handleStep = (step: StepId) => {
+    progressTouchedRef.current = true;
     setActiveStep(step);
     if (step === "original") {
       setOriginalOpen(true);
@@ -421,13 +472,16 @@ export function ResultView({
               items={selfTestItems}
               revealed={selfTestRevealed}
               onToggle={toggleSelfTest}
-              onCollapseAll={() => setSelfTestRevealed(new Set<string>())}
+              onCollapseAll={() => {
+                progressTouchedRef.current = true;
+                setSelfTestRevealed(new Set<string>());
+              }}
             />
             <LearningReportSection
               doc={doc}
               analysis={analysis}
               stats={stats}
-              revealedIds={Array.from(selfTestRevealed)}
+              revealedIds={validRevealedIds}
               selfTestTotal={selfTestItems.length}
             />
             <RawMarkdown markdown={doc.markdown} demo={doc.mode === "demo"} />
@@ -1281,6 +1335,7 @@ function SelfTestSection({
   onToggle: (id: string) => void;
   onCollapseAll: () => void;
 }) {
+  const expanded = items.filter((item) => revealed.has(item.id)).length;
   return (
     <section id="selfTest" className="scroll-mt-32">
       <SectionTitle
@@ -1293,13 +1348,13 @@ function SelfTestSection({
       <div className="rounded-2xl border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            共 {items.length} 题 · 已展开 {revealed.size} 题
+            共 {items.length} 题 · 已展开 {expanded} 题
           </p>
           <Button
             variant="ghost"
             size="sm"
             onClick={onCollapseAll}
-            disabled={revealed.size === 0}
+            disabled={expanded === 0}
           >
             全部收起
           </Button>

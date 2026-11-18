@@ -1,0 +1,25 @@
+{
+  "capturedAt": "2026-11-18T08:46:03.064Z",
+  "url": "http://127.0.0.1:6392/",
+  "paperHash": "demo-attention-v1",
+  "method": "performance.now() from help button click to answer visible",
+  "hit": {
+    "helpId": "result.citationCheck",
+    "label": "引用校验",
+    "source": "cache",
+    "elapsedMs": 43.6,
+    "fallbackNote": false,
+    "thresholdMs": 200,
+    "pass": true
+  },
+  "miss": {
+    "helpId": "result.export",
+    "label": "导出",
+    "source": "api",
+    "elapsedMs": 27.5,
+    "fallbackNote": false,
+    "thresholdMs": 6000,
+    "pass": true
+  },
+  "notes": "Local dev; help API mock/fallback only. No paid API, no LLM, no deployment."
+}

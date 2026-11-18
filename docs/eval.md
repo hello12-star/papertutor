@@ -1,7 +1,7 @@
 # PaperTutor P0 验收清单与测试映射
 
-> 基线分支：`feat/m1e3-quality-gate`（从 `feat/m1e2-docs-audit` a2349a7 新建）。
-> 当前质量门禁：`npm test` **42/42 通过**；`npm run lint` **0 error / 1 warning**；`npm run test:e2e` **6/6 通过**；`npm run build` 通过（前端 `tsc --noEmit` + Vite）；函数侧 `tsc` 通过。
+> 基线分支：`feat/m1e5-progress-persist`（从 `feat/m1e4-budget-cap` 8d2a8f2 新建）。
+> 当前质量门禁：`npm test` **42/42 通过**；`npm run lint` **0 error / 1 warning**；`npm run test:e2e` **8/8 通过**；`npm run build` 通过（前端 `tsc --noEmit` + Vite）；函数侧 `tsc` 通过。
 > Lighthouse：移动端 **96 / 95 / 100**，桌面端 **100 / 95 / 100**（Performance / Accessibility / Best Practices）。
 > 本文区分四类证据：**自动化测试**（`node --test`）、**lint**（ESLint）、**Playwright e2e**（仓库内 `e2e/`，系统 Edge）、**未验证**（需要真实环境或人工）。临时 `/tmp/qa` 仍用于额外的移动端/性能检查。
 
@@ -40,12 +40,12 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | 全新浏览器、无 Key，点示例 2 秒内出完整速览与骨架 | `demo-papers`：3 篇 approved、完整材料、引用可校验 | `docs/trackb`：示例加载 314–553 ms；三篇均可打开 | 数据/交互已覆盖；2 秒阈值无自动化性能测试 |
 | 真实 10 页 PDF：进度可见、可取消、失败可重试、可看原文 | `parse-control`：取消/重试/晚到响应；`server-skeleton`：mock 解析端到端 | `docs/m1e1`：1440/390 的 3/10 进度、取消回首页、失败重试、同一文件；`docs/m1e2`：320–430 进度/失败页 | mock + 浏览器通过；**真实 MinerU 未验证** |
 | verified 引用 100% 可点击跳转并高亮；未定位有提示 | `demo-papers`：所有示例引用可匹配；`export-history`：导出包含引用 | M1-A 浏览器验收：引用定位抽屉、偏移高亮、未定位提示；Track B 示例结果页 | 示例/夹具通过；**真实论文 100% 未验证** |
-| 四步引导可完成、刷新保留；自测可展开答案；学习报告可生成 | `export-history`：自测题/导出；`study-tools`：答案/报告 | M1-D1：四步导航/历史；Track B：自测展开/学习报告下载 | 部分覆盖；刷新后进度保留无自动化断言 |
-| 帮助预生成 <200ms；未命中 <6s；离线/失败有兜底；无报错弹窗 | `help-core`：缓存命中/未命中/超时回退/预生成/重生成限制；`server-skeleton`：help mock 无外部 fetch | M1-C 浏览器验收：cache/api/fallback、popover/sheet、0 console error | 逻辑通过；**延迟阈值未自动化/未计时** |
+| 四步引导可完成、刷新保留；自测可展开答案；学习报告可生成 | `export-history`：自测题/导出；`study-tools`：答案/报告；e2e：刷新后从最近分析重开同一篇，恢复 activeStep 与 2 个已展开题；删除历史同步清进度 | M1-D1：四步导航/历史；Track B：自测展开/学习报告下载；e2e 8/8 | 已覆盖（进度按论文 hash 存 IndexedDB） |
+| 帮助预生成 <200ms；未命中 <6s；离线/失败有兜底；无报错弹窗 | `help-core`：缓存命中/未命中/超时回退/预生成/重生成限制；`server-skeleton`：help mock 无外部 fetch | M1-C 浏览器验收：cache/api/fallback、popover/sheet、0 console error；M1-E5 单次实测：命中 **43.6ms**（cache），未命中 **27.5ms**（本地 mock api） | 本地达标；**真实 provider/部署环境未验证** |
 | 方法流程图、实验-结论表、公式卡桌面和移动可读 | `study-tools`：公式提取 | Track B：流程图、实验表、公式卡；M1-E2：320–430 无横向滚动 | 部分覆盖；无 DOM/视觉回归测试 |
 | 前端 bundle/localStorage/网络无密钥；付费接口只允许本站 Origin；无公开免鉴权代理；无 CORS `*` | `demo-papers`：示例 JSON 无密钥字段；`server-skeleton`：生产拒绝 mock | Track B/M1-E1 bundle 审计：QA 夹具/mock-llm/env 名均 0；`debug.env` 只读检查 | **部署后 Origin/CORS/网络请求未验证**；无自动化密钥扫描 |
 | 模拟超预算 402；模拟停服 503；3 篇成本写入 `docs/cost.md`；每日上限生效 | `budget`：503/402/429/跨日；`server-skeleton`：SERVICE_ENABLED 503、预算 402 无 LLM fetch | [docs/cost.md](cost.md) 已完成估算 | 逻辑通过；**每日上限仍是进程内 mock，未持久化** |
-| build/lint/typecheck/Playwright 冒烟；320/360/390/414 无横向滚动；Lighthouse 阈值 | `npm run build`（tsc + Vite）通过；`npm run lint` 0 error/1 warning；`npm run test:e2e` 6/6 | M1-E2：320/360/390/414/430 四类页面 scrollWidth==clientWidth、0 console error；E2E：desktop 1440 + mobile 390 的示例/失败/取消；Lighthouse：移动 96/95/100，桌面 100/95/100 | **已补齐**；Playwright 尚未接 CI |
+| build/lint/typecheck/Playwright 冒烟；320/360/390/414 无横向滚动；Lighthouse 阈值 | `npm run build`（tsc + Vite）通过；`npm run lint` 0 error/1 warning；`npm run test:e2e` 8/8 | M1-E2：320/360/390/414/430 四类页面 scrollWidth==clientWidth、0 console error；E2E：desktop 1440 + mobile 390 的示例/失败/取消/进度恢复；Lighthouse：移动 96/95/100，桌面 100/95/100 | **已补齐**；Playwright 尚未接 CI |
 
 > M1-E2 元素扫描中，进度条内部填充元素出现负 `left`（进度为 0 时的 transform），其父容器 `overflow-hidden`，页面 `scrollWidth` 未变化；不计为页面横向滚动。
 
@@ -73,10 +73,10 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 
 ## 4. 其他仍需补齐的项
 
-- **Playwright CI**：`e2e/` 已入仓（6/6 通过），但尚未接入 CI；`/tmp/qa` 仍保留额外的移动端/性能脚本。
+- **Playwright CI**：`e2e/` 已入仓（8/8 通过），但尚未接入 CI；`/tmp/qa` 仍保留额外的移动端/性能脚本。
 - **真实论文引用定位**：M1-A 和 Track B 主要验证夹具/示例；真实论文的 100% 定位/高亮仍需抽样。
-- **帮助延迟**：<200ms / <6s 没有自动化计时；需要浏览器 Performance 计时。
-- **四步刷新保留**：M1-D1 验证了导航/历史，但没有自动化断言“刷新后进度保留”。
+- **真实 provider 帮助延迟**：M1-E5 只在本地 mock help 上计时；真实 LLM/线上网关下的 <200ms / <6s 未验证。
+- **刷新后自动回到结果页**：当前应用没有路由；e2e 的恢复路径是“刷新后从最近分析重开同一篇”，不是 URL 自动恢复。
 - **预算持久化**：`functions/budget.ts` 是进程内计数，冷启动重置；上线前必须改为持久化。
 - **真实 DocMind smoke**：Secret 仍为 false；`PARSER_NOT_IMPLEMENTED` 仍未替换为真实提交/轮询。
 - **真实移动设备**：M1-E2/M1-E3 使用 Edge 模拟视口；未在 iOS Safari/Android Chrome 真机验证。
@@ -95,12 +95,14 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | M1-E3 Playwright 输出 | [docs/m1e3/e2e-output.txt](m1e3/e2e-output.txt) |
 | M1-E3 Lighthouse JSON + 汇总 | [docs/m1e3/lighthouse-mobile.json](m1e3/lighthouse-mobile.json)、[docs/m1e3/lighthouse-desktop.json](m1e3/lighthouse-desktop.json)、[docs/m1e3/lighthouse-summary.json](m1e3/lighthouse-summary.json) |
 | 10 页 PDF fixture / 生成脚本 | [e2e/fixtures/ten-pages.pdf](../e2e/fixtures/ten-pages.pdf)、[e2e/fixtures/generate-ten-pages.mjs](../e2e/fixtures/generate-ten-pages.mjs) |
-| 测试命令与结果 | `npm test`（42/42）、`npm run lint`、`npm run test:e2e`（6/6）、`npm run build`、函数侧 `tsc` |
+| M1-E5 进度恢复/清理 e2e 输出 | [docs/m1e5/e2e-output.txt](m1e5/e2e-output.txt) |
+| M1-E5 帮助延迟 | [docs/m1e5/help-latency.json](m1e5/help-latency.json) |
+| 测试命令与结果 | `npm test`（42/42）、`npm run lint`、`npm run test:e2e`（8/8）、`npm run build`、函数侧 `tsc` |
 
 ## 6. 结论
 
-- **已达到自动化/本地证据**：示例演示、引用校验（示例）、帮助缓存/回退、预算 402/503、解析取消/重试、学习报告、320–430 无横向滚动、lint 0 error、Playwright 6/6、Lighthouse 移动/桌面达标。
-- **不能宣称已达到**：真实 MinerU、真实 LLM、部署后的 Origin/超时/流式、Playwright CI、真实移动设备。
+- **已达到自动化/本地证据**：示例演示、引用校验（示例）、帮助缓存/回退、预算 402/503、解析取消/重试、学习报告、320–430 无横向滚动、lint 0 error、Playwright 8/8、Lighthouse 移动/桌面达标、进度按论文 hash 持久化/恢复/清理、帮助延迟本地单次实测达标。
+- **不能宣称已达到**：真实 MinerU、真实 LLM、部署后的 Origin/超时/流式、Playwright CI、真实移动设备、真实 provider 下的帮助延迟、URL 自动恢复结果页。
 - 比赛提交前，至少应完成第 3 节三项真实环境验证；否则应在验收说明中明确标注“本地/mock 验证”。
 
 ## 7. M1-E3 质量门禁结果（2026-11-18）
@@ -108,10 +110,20 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | 项 | 命令 | 结果 | 证据 |
 |---|---|---|---|
 | ESLint | `npm run lint` | **0 error / 1 warning**（`components/ui/combobox.tsx` 未使用参数） | [lint-output.txt](m1e3/lint-output.txt) |
-| Playwright | `npm run test:e2e` | **6/6 pass**：desktop 1440 + mobile 390；示例页、解析失败重试、解析中取消 | [e2e-output.txt](m1e3/e2e-output.txt)、[e2e/app.spec.ts](../e2e/app.spec.ts) |
+| Playwright | `npm run test:e2e` | **M1-E3 6/6；M1-E5 8/8**：desktop 1440 + mobile 390；示例页、解析失败重试、解析中取消、进度恢复/删除清理 | [docs/m1e3/e2e-output.txt](m1e3/e2e-output.txt)、[docs/m1e5/e2e-output.txt](m1e5/e2e-output.txt)、[e2e/app.spec.ts](../e2e/app.spec.ts) |
 | Lighthouse 移动 | `CHROME_PATH=... npx lighthouse http://127.0.0.1:6394/ --only-categories=performance,accessibility,best-practices --form-factor=mobile --output=json --output-path=docs/m1e3/lighthouse-mobile.json --chrome-flags="--headless=new --no-sandbox --disable-gpu" --quiet` | **Performance 96 / Accessibility 95 / Best Practices 100**，LCP 2.2s，TBT 140ms | [lighthouse-mobile.json](m1e3/lighthouse-mobile.json) |
 | Lighthouse 桌面 | 同上，改为 `--preset=desktop`，输出 `lighthouse-desktop.json` | **Performance 100 / Accessibility 95 / Best Practices 100**，LCP 0.5s，TBT 0ms | [lighthouse-desktop.json](m1e3/lighthouse-desktop.json) |
 
 - 目标：移动三项 ≥85，桌面 ≥90；**两项均达标**。
 - Lighthouse 审计 URL 为 production preview 的首页 `http://127.0.0.1:6394/`；preview 命令 `npm run preview -- --port 6394 --strictPort`，使用系统 Edge（`C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`）。
 - 10 页 PDF fixture 由 [generate-ten-pages.mjs](../e2e/fixtures/generate-ten-pages.mjs) 生成，当前 3,165 字节、10 页；`npm run fixture:pdf` 可重建。
+
+## 8. M1-E5 进度持久化与帮助延迟（2026-11-18）
+
+- **进度存储**：`papertutor-history` IndexedDB 升级到 v2，新增 `progress` store；key 为论文 `paperHash`，记录 `activeStep` 与 `revealedSelfTestIds`。IndexedDB 不可用时静默降级；删除/清空历史同时删除对应进度；保存时裁剪为最近 20 条。
+- **恢复验证**：`npm run test:e2e` **8/8 通过**（desktop 1440 + mobile 390）。流程：打开示例 → 切到自测 → 展开 2 题 → 刷新 → 从最近分析重开同一篇；`自测` 保持 active，2 题保持展开；删除历史后进度记录清空。日志：[docs/m1e5/e2e-output.txt](m1e5/e2e-output.txt)。
+- **帮助延迟**：桌面 1440 示例结果页，`performance.now()` 从点击帮助按钮到答案可见：
+  - 预生成控件“引用校验”：**43.6ms**，`source=cache`，<200ms 达标。
+  - 未命中控件“导出”：**27.5ms**，`source=api`（本地 mock help），<6s 达标。
+  - 证据：[docs/m1e5/help-latency.json](m1e5/help-latency.json)；命令 `npm run measure:help`。
+- **边界**：帮助延迟是本地 mock help 的单次测量，不是真实 LLM/线上网关；刷新后需要从最近分析重开同一篇（应用没有 URL 路由自动恢复结果页）。
