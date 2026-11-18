@@ -178,7 +178,6 @@ export function SettingsDialog({ open, onOpenChange, settings, onSave, onClearCa
       void refreshModels(false, settings);
     }
     // refreshModels 依赖 draft，首次打开用传入的 settings 覆盖
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, settings]);
 
   const update = (patch: Partial<Settings>) => {

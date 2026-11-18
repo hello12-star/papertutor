@@ -59,7 +59,7 @@ const CURATED: Record<string, string[]> = {
 };
 
 const EXCLUDE = /(embedding|embed-|rerank|tts|asr|speech|audio|whisper|transcri|moderation|guard|bge-|gte-|m3e|cosyvoice|sambert|paraformer|sensevoice|ocr|cogview|wanx|wan2|cogvideo|flux|dall-e|stable-diffusion|sdxl|realtime|image-generation)/i;
-const EXCLUDE_VL = /(^|[\/_-])(vl|vlm)([\/_-]|$)/i;
+const EXCLUDE_VL = /(^|[/_-])(vl|vlm)([/_-]|$)/i;
 
 function scoreModel(id: string, meta?: ModelMeta): ModelOption {
   const lower = id.toLowerCase();

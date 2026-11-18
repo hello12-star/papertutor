@@ -7,3 +7,6 @@ dist/
 *.tsbuildinfo
 .qoder-sites/
 .qoder-sites.json
+test-results/
+playwright-report/
+blob-report/

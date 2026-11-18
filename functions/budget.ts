@@ -76,7 +76,7 @@ export function checkBudget(
     };
   }
 
-  let next: BudgetState = state.day === dayKey(now) ? { ...state } : initialBudgetState(now);
+  const next: BudgetState = state.day === dayKey(now) ? { ...state } : initialBudgetState(now);
   if (now - next.windowStartedAt >= 60_000) {
     next.windowStartedAt = now;
     next.windowCount = 0;

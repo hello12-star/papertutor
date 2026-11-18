@@ -169,7 +169,6 @@ function HelpPanel({
 
   useEffect(() => {
     void load("default");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [helpId, paperHash]);
 
   const requestVariant = async (variant: HelpVariant) => {
