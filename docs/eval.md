@@ -1,7 +1,7 @@
 # PaperTutor P0 验收清单与测试映射
 
 > 基线分支：`feat/m1e3-quality-gate`（从 `feat/m1e2-docs-audit` a2349a7 新建）。
-> 当前质量门禁：`npm test` **41/41 通过**；`npm run lint` **0 error / 1 warning**；`npm run test:e2e` **6/6 通过**；`npm run build` 通过（前端 `tsc --noEmit` + Vite）；函数侧 `tsc` 通过。
+> 当前质量门禁：`npm test` **42/42 通过**；`npm run lint` **0 error / 1 warning**；`npm run test:e2e` **6/6 通过**；`npm run build` 通过（前端 `tsc --noEmit` + Vite）；函数侧 `tsc` 通过。
 > Lighthouse：移动端 **96 / 95 / 100**，桌面端 **100 / 95 / 100**（Performance / Accessibility / Best Practices）。
 > 本文区分四类证据：**自动化测试**（`node --test`）、**lint**（ESLint）、**Playwright e2e**（仓库内 `e2e/`，系统 Edge）、**未验证**（需要真实环境或人工）。临时 `/tmp/qa` 仍用于额外的移动端/性能检查。
 
@@ -14,9 +14,9 @@
 | `tests/export-history.test.mjs` | 6 | 导出 Markdown 章节；大纲；自测题离线生成；文件名清洗；历史去重/最多 10 条；历史标题回退 |
 | `tests/demo-papers.test.mjs` | 4 | 3 篇示例索引与 approved 状态；只含引用节选/无密钥字段；速览/骨架/公式完整；每条引用都能在节选中匹配 |
 | `tests/study-tools.test.mjs` | 3 | 自测答案与引用；学习报告基于本地进度生成；从 Markdown 提取公式卡 |
-| `tests/budget.test.mjs` | 4 | 停服 503；预算耗尽 402 且不超支；限流 429 与窗口重置；跨 UTC 日重置 |
+| `tests/budget.test.mjs` | 5 | 停服 503；预算耗尽 402 且不超支；限流 429 与窗口重置；跨 UTC 日重置；未设置 `DAILY_BUDGET_CNY` 时默认 1 元 |
 | `tests/parse-control.test.mjs` | 4 | 同一时间只允许一个解析请求；取消中止并清空 busy；晚到完成不释放新请求；完成后可重试 |
-| **合计** | **41** | — |
+| **合计** | **42** | — |
 
 运行命令：
 
@@ -95,7 +95,7 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | M1-E3 Playwright 输出 | [docs/m1e3/e2e-output.txt](m1e3/e2e-output.txt) |
 | M1-E3 Lighthouse JSON + 汇总 | [docs/m1e3/lighthouse-mobile.json](m1e3/lighthouse-mobile.json)、[docs/m1e3/lighthouse-desktop.json](m1e3/lighthouse-desktop.json)、[docs/m1e3/lighthouse-summary.json](m1e3/lighthouse-summary.json) |
 | 10 页 PDF fixture / 生成脚本 | [e2e/fixtures/ten-pages.pdf](../e2e/fixtures/ten-pages.pdf)、[e2e/fixtures/generate-ten-pages.mjs](../e2e/fixtures/generate-ten-pages.mjs) |
-| 测试命令与结果 | `npm test`（41/41）、`npm run lint`、`npm run test:e2e`（6/6）、`npm run build`、函数侧 `tsc` |
+| 测试命令与结果 | `npm test`（42/42）、`npm run lint`、`npm run test:e2e`（6/6）、`npm run build`、函数侧 `tsc` |
 
 ## 6. 结论
 

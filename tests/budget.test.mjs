@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkBudget, initialBudgetState } from "../functions/budget.ts";
+import { checkBudget, initialBudgetState, loadBudgetConfig } from "../functions/budget.ts";
 
 const base = {
   serviceEnabled: true,
@@ -56,4 +56,15 @@ test("new UTC day resets daily spend", () => {
   assert.equal(nextDay.decision.ok, true);
   assert.equal(nextDay.state.spentCny, 0.06);
   assert.equal(nextDay.state.day, "1970-01-02");
+});
+
+test("default daily budget is 1 CNY when env is not set", () => {
+  const previous = process.env.DAILY_BUDGET_CNY;
+  delete process.env.DAILY_BUDGET_CNY;
+  try {
+    assert.equal(loadBudgetConfig().dailyBudgetCny, 1);
+  } finally {
+    if (previous === undefined) delete process.env.DAILY_BUDGET_CNY;
+    else process.env.DAILY_BUDGET_CNY = previous;
+  }
 });
