@@ -1,12 +1,41 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { predictionsForScreen, staticHelpAnswer } from "../functions/help/registry";
 
 const FIXTURE = path.resolve("e2e/fixtures/ten-pages.pdf");
 const DEMO_HASH = "demo-attention-v1";
 const DEMO_PAPER = JSON.parse(
   fs.readFileSync("public/demo/attention.json", "utf8"),
 );
+
+test.beforeEach(async ({ page }) => {
+  await page.route("**/functions/v1/app*", (route) => route.fulfill({
+    status: 404,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: false, code: "E2E_UNMOCKED_REQUEST" }),
+  }));
+});
+
+async function mockHelp(page: Page, status = 200) {
+  const calls = { predict: 0, answer: 0 };
+  await page.route(/\/functions\/v1\/app\?action=api\.help\./, async (route) => {
+    const action = new URL(route.request().url()).searchParams.get("action");
+    const body = route.request().postDataJSON();
+    if (action === "api.help.predict") calls.predict += 1;
+    else calls.answer += 1;
+    await route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(status === 200
+        ? action === "api.help.predict"
+          ? { ok: true, items: predictionsForScreen(body.screen) }
+          : { ok: true, answer: staticHelpAnswer(body.helpId, body.variant ?? "default") }
+        : { ok: false, code: "DAILY_BUDGET_EXCEEDED", message: "今日预算已用尽" }),
+    });
+  });
+  return calls;
+}
 
 async function mockMineru(page: Page, mode: "failure" | "running") {
   await page.route("**/functions/v1/app*", async (route) => {
@@ -142,6 +171,7 @@ test("parse progress shows cancel and returns to upload", async ({ page }) => {
 });
 
 test("server mode uses /api/parse and /api/analyze without MinerU", async ({ page }) => {
+  const helpCalls = await mockHelp(page);
   const calls = { parse: 0, analyze: 0, mineru: 0 };
   page.on("request", (request) => {
     const url = request.url();
@@ -188,6 +218,67 @@ test("server mode uses /api/parse and /api/analyze without MinerU", async ({ pag
   expect(calls.parse).toBe(1);
   expect(calls.analyze).toBe(1);
   expect(calls.mineru).toBe(0);
+  await page.waitForTimeout(1000);
+  expect(helpCalls).toEqual({ predict: 0, answer: 0 });
+  await page.getByRole("button", { name: "需要的话，可以看这里：引用校验", exact: true }).click();
+  await expect(page.locator('[data-help-id="result.citationCheck"]')).toHaveAttribute("data-source", "api");
+  expect(helpCalls).toEqual({ predict: 0, answer: 1 });
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(page.locator('[data-help-id="result.citationCheck"]')).toHaveCount(0);
+  await page.getByRole("button", { name: "需要的话，可以看这里：引用校验", exact: true }).click();
+  await expect(page.locator('[data-help-id="result.citationCheck"]')).toHaveAttribute("data-source", "cache");
+  expect(helpCalls).toEqual({ predict: 0, answer: 1 });
+});
+
+test("server help waits for health and falls back on budget rejection without background calls", async ({ page }) => {
+  const calls = await mockHelp(page, 402);
+  let releaseHealth!: () => void;
+  const healthReady = new Promise<void>((resolve) => { releaseHealth = resolve; });
+  await page.route("**/functions/v1/app/api/health*", async (route) => {
+    await healthReady;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, serverMode: true, serviceEnabled: true }),
+    });
+  });
+  await page.goto("/");
+  await expect(page.getByText("没有 Key，也能先读 3 篇经典论文")).toBeVisible();
+  await page.waitForTimeout(1000);
+  expect(calls).toEqual({ predict: 0, answer: 0 });
+  releaseHealth();
+  await expect(page.locator("[data-server-mode]")).toHaveAttribute("data-server-mode", "true");
+  await page.waitForTimeout(1000);
+  expect(calls).toEqual({ predict: 0, answer: 0 });
+
+  await page.getByRole("button", { name: "需要的话，可以看这里：PDF 上传", exact: true }).click();
+  await expect(page.locator('[data-help-id="landing.upload"]')).toHaveAttribute("data-source", "fallback");
+  await expect(page.getByText("帮助服务暂时不可用，以上是内置说明。")).toBeVisible();
+  expect(calls).toEqual({ predict: 0, answer: 1 });
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+
+  const card = page.locator("article").filter({ hasText: "Attention Is All You Need" }).first();
+  await card.getByRole("button", { name: /打开示例/ }).click();
+  await expect(page.getByText("30 秒速览：这篇论文值不值得深读")).toBeVisible();
+  await page.waitForTimeout(1000);
+  expect(calls).toEqual({ predict: 0, answer: 1 });
+  await page.getByRole("button", { name: "需要的话，可以看这里：引用校验", exact: true }).click();
+  await expect(page.locator('[data-help-id="result.citationCheck"]')).toHaveAttribute("data-source", "fallback");
+  await expect(page.getByText("帮助服务暂时不可用，以上是内置说明。")).toBeVisible();
+  await page.waitForTimeout(1000);
+  expect(calls).toEqual({ predict: 0, answer: 2 });
+});
+
+test("non-server mode keeps automatic help precomputation", async ({ page }) => {
+  const calls = await mockHelp(page);
+  await gotoLanding(page);
+  await expect.poll(() => calls.answer).toBe(3);
+  expect(calls.predict).toBe(1);
+  const card = page.locator("article").filter({ hasText: "Attention Is All You Need" }).first();
+  await card.getByRole("button", { name: /打开示例/ }).click();
+  await expect(page.getByText("30 秒速览：这篇论文值不值得深读")).toBeVisible();
+  await expect.poll(() => calls.answer).toBe(8);
+  expect(calls.predict).toBe(2);
 });
 
 test("restores progress after reload and clears it with history delete", async ({ page }) => {

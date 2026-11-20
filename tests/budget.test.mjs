@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkBudget, initialBudgetState, loadBudgetConfig } from "../functions/budget.ts";
+import {
+  checkBudget,
+  guardAnalysisBudget,
+  guardHelpBudget,
+  initialBudgetState,
+  loadBudgetConfig,
+  resetBudgetForTests,
+} from "../functions/budget.ts";
 
 const base = {
   serviceEnabled: true,
@@ -8,6 +15,45 @@ const base = {
   requestCostCny: 0.06,
   maxRequestsPerMinute: 10,
 };
+
+const BUDGET_ENV_KEYS = [
+  "SERVICE_ENABLED",
+  "DAILY_BUDGET_CNY",
+  "ESTIMATED_ANALYSIS_COST_CNY",
+  "ESTIMATED_HELP_COST_CNY",
+  "MAX_REQUESTS_PER_MINUTE",
+];
+
+function withBudgetEnv(values, run) {
+  // Only snapshot non-sensitive budget settings, never provider credentials.
+  const previous = new Map(BUDGET_ENV_KEYS.map((key) => [key, process.env[key]]));
+  try {
+    for (const key of BUDGET_ENV_KEYS) {
+      if (values[key] === undefined) delete process.env[key];
+      else process.env[key] = values[key];
+    }
+    resetBudgetForTests(0);
+    run();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    resetBudgetForTests();
+  }
+}
+
+function assertAllowed(decision, remainingCny) {
+  assert.deepEqual(decision, { ok: true, code: "OK", remainingCny });
+}
+
+function assertDenied(decision, status, code) {
+  assert.equal(decision.ok, false);
+  assert.equal(decision.status, status);
+  assert.equal(decision.code, code);
+  assert.equal(typeof decision.message, "string");
+  assert.ok(decision.message.trim());
+}
 
 test("service disabled returns 503", () => {
   const { decision } = checkBudget(
@@ -67,4 +113,104 @@ test("default daily budget is 1 CNY when env is not set", () => {
     if (previous === undefined) delete process.env.DAILY_BUDGET_CNY;
     else process.env.DAILY_BUDGET_CNY = previous;
   }
+});
+
+test("help guard defaults to 0.002 CNY independently of analysis cost", () => {
+  withBudgetEnv(
+    { DAILY_BUDGET_CNY: "0.006", ESTIMATED_ANALYSIS_COST_CNY: "0.05" },
+    () => {
+      assertAllowed(guardHelpBudget(0), 0.004);
+      assertAllowed(guardHelpBudget(1), 0.002);
+      assertAllowed(guardHelpBudget(2), 0);
+      assertDenied(guardHelpBudget(3), 402, "DAILY_BUDGET_EXCEEDED");
+    },
+  );
+});
+
+test("help guard uses custom ESTIMATED_HELP_COST_CNY", () => {
+  withBudgetEnv(
+    {
+      DAILY_BUDGET_CNY: "0.06",
+      ESTIMATED_ANALYSIS_COST_CNY: "0.05",
+      ESTIMATED_HELP_COST_CNY: "0.03",
+    },
+    () => {
+      assertAllowed(guardHelpBudget(0), 0.03);
+      assertAllowed(guardHelpBudget(1), 0);
+      assertDenied(guardHelpBudget(2), 402, "DAILY_BUDGET_EXCEEDED");
+    },
+  );
+});
+
+test("help and analysis guards share daily spend in both directions", () => {
+  withBudgetEnv(
+    {
+      DAILY_BUDGET_CNY: "0.054",
+      ESTIMATED_ANALYSIS_COST_CNY: "0.05",
+      ESTIMATED_HELP_COST_CNY: "0.002",
+    },
+    () => {
+      assertAllowed(guardHelpBudget(0), 0.052);
+      assertAllowed(guardAnalysisBudget(1), 0.002);
+      assertAllowed(guardHelpBudget(2), 0);
+      assertDenied(guardHelpBudget(3), 402, "DAILY_BUDGET_EXCEEDED");
+      assertDenied(guardAnalysisBudget(4), 402, "DAILY_BUDGET_EXCEEDED");
+    },
+  );
+});
+
+test("help and analysis share a minute limit without resetting daily spend", () => {
+  withBudgetEnv(
+    {
+      DAILY_BUDGET_CNY: "0.2",
+      ESTIMATED_ANALYSIS_COST_CNY: "0.05",
+      ESTIMATED_HELP_COST_CNY: "0.002",
+      MAX_REQUESTS_PER_MINUTE: "2",
+    },
+    () => {
+      assertAllowed(guardAnalysisBudget(0), 0.15);
+      assertAllowed(guardHelpBudget(1), 0.148);
+      assertDenied(guardHelpBudget(59_999), 429, "RATE_LIMITED");
+      assertDenied(guardAnalysisBudget(59_999), 429, "RATE_LIMITED");
+      assertAllowed(guardHelpBudget(60_000), 0.146);
+      assertAllowed(guardAnalysisBudget(60_001), 0.096);
+      assertDenied(guardHelpBudget(60_002), 429, "RATE_LIMITED");
+    },
+  );
+});
+
+test("new UTC day resets shared help and analysis spend and minute count", () => {
+  withBudgetEnv(
+    {
+      DAILY_BUDGET_CNY: "0.052",
+      ESTIMATED_ANALYSIS_COST_CNY: "0.05",
+      ESTIMATED_HELP_COST_CNY: "0.002",
+      MAX_REQUESTS_PER_MINUTE: "2",
+    },
+    () => {
+      const beforeMidnight = Date.UTC(2026, 0, 1, 23, 59, 59);
+      resetBudgetForTests(beforeMidnight);
+      assertAllowed(guardAnalysisBudget(beforeMidnight), 0.002);
+      assertAllowed(guardHelpBudget(beforeMidnight + 1), 0);
+      assertDenied(guardHelpBudget(beforeMidnight + 2), 429, "RATE_LIMITED");
+      assertAllowed(guardHelpBudget(beforeMidnight + 1_000), 0.05);
+      assertAllowed(guardAnalysisBudget(beforeMidnight + 1_001), 0);
+    },
+  );
+});
+
+test("disabled help guard returns 503 without spending or consuming rate quota", () => {
+  withBudgetEnv(
+    {
+      SERVICE_ENABLED: "false",
+      DAILY_BUDGET_CNY: "0.002",
+      ESTIMATED_HELP_COST_CNY: "0.002",
+      MAX_REQUESTS_PER_MINUTE: "1",
+    },
+    () => {
+      assertDenied(guardHelpBudget(0), 503, "SERVICE_DISABLED");
+      process.env.SERVICE_ENABLED = "true";
+      assertAllowed(guardHelpBudget(1), 0);
+    },
+  );
 });

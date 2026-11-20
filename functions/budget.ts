@@ -133,3 +133,11 @@ export function guardAnalysisBudget(now = Date.now()): BudgetDecision {
   budgetState = result.state;
   return result.decision;
 }
+
+export function guardHelpBudget(now = Date.now()): BudgetDecision {
+  const config = loadBudgetConfig();
+  config.requestCostCny = numberEnv("ESTIMATED_HELP_COST_CNY", 0.002);
+  const result = checkBudget(budgetState, config, now);
+  budgetState = result.state;
+  return result.decision;
+}

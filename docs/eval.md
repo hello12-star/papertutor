@@ -118,6 +118,13 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 - Lighthouse 审计 URL 为 production preview 的首页 `http://127.0.0.1:6394/`；preview 命令 `npm run preview -- --port 6394 --strictPort`，使用系统 Edge（`C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`）。
 - 10 页 PDF fixture 由 [generate-ten-pages.mjs](../e2e/fixtures/generate-ten-pages.mjs) 生成，当前 3,165 字节、10 页；`npm run fixture:pdf` 可重建。
 
+## M1-F3 帮助按需与预算保护（2026-11-20）
+
+- **服务端模式不自动预生成，改为按需**：首页和结果页的 `HelpScope` 均关闭 bootstrap 定时器；健康检查返回前也不预取，避免初始模式尚未确认时发出付费请求。
+- 非 server 模式保留原有预生成；无远程预测时使用本地 `predictionsForScreen`。点击帮助仍走缓存 → 按需 API → 内置说明回退，402/429/503 不触发自动重试。
+- help predict/answer 与 analyze 共享每日累计、分钟限流及 `SERVICE_ENABLED`，帮助默认预估 0.002 CNY/次；预算仍为进程内计数，不代表跨冷启动/多实例的账单硬上限。
+- 本轮禁止真实付费调用：本地 E2E 拦截全部 Function 请求，线上只检查既有版本的 health/debug/首页。Sites 返回 `sites_not_found`，M1-F3 尚未部署，部署后的示例帮助验证未执行。门禁与阻塞证据见 [M1-F3](m1f3.md)。上方 M1-E5 数据为历史记录，最新基线另见 M1-F2 smoke 与 M1-F3 记录。
+
 ## 8. M1-E5 进度持久化与帮助延迟（2026-11-18）
 
 - **进度存储**：`papertutor-history` IndexedDB 升级到 v2，新增 `progress` store；key 为论文 `paperHash`，记录 `activeStep` 与 `revealedSelfTestIds`。IndexedDB 不可用时静默降级；删除/清空历史同时删除对应进度；保存时裁剪为最近 20 条。

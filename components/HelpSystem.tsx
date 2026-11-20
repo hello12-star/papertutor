@@ -34,18 +34,22 @@ const HelpContext = createContext<HelpContextValue>({
 export function HelpScope({
   screen,
   paperHash,
+  autoBootstrap = true,
   children,
 }: {
   screen: HelpScreen;
   paperHash: string;
+  autoBootstrap?: boolean;
   children: ReactNode;
 }) {
   useEffect(() => {
+    if (!autoBootstrap) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
       void bootstrapHelp({
         screen,
         paperHash,
+        autoBootstrap,
         cache: helpCache,
         predictFetcher: fetchPredictions,
         answerFetcher: fetchHelpAnswer,
@@ -56,7 +60,7 @@ export function HelpScope({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [screen, paperHash]);
+  }, [screen, paperHash, autoBootstrap]);
 
   return (
     <HelpContext.Provider value={{ screen, paperHash }}>{children}</HelpContext.Provider>
@@ -168,7 +172,8 @@ function HelpPanel({
   };
 
   useEffect(() => {
-    void load("default");
+    const timer = window.setTimeout(() => void load("default"), 0);
+    return () => window.clearTimeout(timer);
   }, [helpId, paperHash]);
 
   const requestVariant = async (variant: HelpVariant) => {

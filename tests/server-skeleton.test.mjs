@@ -21,6 +21,7 @@ const ENV_KEYS = [
   "SERVICE_ENABLED",
   "DAILY_BUDGET_CNY",
   "ESTIMATED_ANALYSIS_COST_CNY",
+  "ESTIMATED_HELP_COST_CNY",
   "MAX_REQUESTS_PER_MINUTE",
 ];
 
@@ -45,6 +46,77 @@ function pdfRequest(bytes, name = "qa-fixture.pdf") {
     },
     body: new Uint8Array(bytes),
   };
+}
+
+function callJson(path, payload) {
+  return call(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+const HELP_REQUESTS = {
+  predict: { screen: "landing", paperHash: "help-budget-paper" },
+  answer: { helpId: "result.citationCheck", paperHash: "help-budget-paper" },
+};
+
+const API_ROUTES = [
+  { name: "path", route: (action) => `/api/${action.replaceAll(".", "/")}` },
+  { name: "query", route: (action) => `?action=api.${action}` },
+];
+
+function setupHelpBudgetTest(t, values = {}) {
+  // Freeze the clock so rate-limit assertions never cross a real minute/day.
+  t.mock.method(Date, "now", () => Date.UTC(2026, 0, 1));
+  resetEnv({
+    SERVER_MODE: "true",
+    LLM_PROVIDER: "auto",
+    LLM_API_KEY: "test-only-not-a-real-key",
+    LLM_BASE_URL: "https://llm.invalid/v1",
+    LLM_MODEL: "budget-test-llm",
+    SERVICE_ENABLED: "true",
+    DAILY_BUDGET_CNY: "1",
+    MAX_REQUESTS_PER_MINUTE: "20",
+    ...values,
+  });
+  t.after(() => resetEnv());
+
+  // A local completion fixture valid for analyze, predict and answer; no network.
+  const content = {
+    items: [{ helpId: "landing.samplePaper", unfamiliarity: 0.8 }],
+    what: "Test control",
+    why: "Test explanation",
+    effect: "Test effect",
+    quickview: {
+      meta: { title: "Budget regression paper" },
+      coreQuestion: "Question",
+      coreContribution: "Contribution",
+      methodSummary: "Method",
+      prerequisites: [],
+      readingPath: { first: [], skip: [] },
+    },
+    skeleton: {
+      problem: { summary: "Problem", limitations: [], citations: [] },
+      insight: { summary: "Insight", citations: [] },
+      modules: [],
+      experiments: [],
+      limitations: { stated: [], inferred: [], citations: [] },
+    },
+  };
+  // Test-context mocks are restored automatically, including on assertion failure.
+  return t.mock.method(globalThis, "fetch", async () =>
+    Response.json({ choices: [{ message: { content: JSON.stringify(content) } }] }),
+  );
+}
+
+function assertBudgetResponse({ response, body }, status, code) {
+  assert.equal(response.status, status);
+  assert.deepEqual(Object.keys(body).sort(), ["code", "message", "ok"]);
+  assert.equal(body.ok, false);
+  assert.equal(body.code, code);
+  assert.equal(typeof body.message, "string");
+  assert.ok(body.message.trim());
 }
 
 test("SERVER_MODE=false keeps old health path and disables API", async () => {
@@ -290,6 +362,83 @@ test("help mock performs 0 outbound calls", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+for (const { name, route } of API_ROUTES) {
+  for (const [kind, payload] of Object.entries(HELP_REQUESTS)) {
+    test(`${name} help ${kind}: exhausted budget returns 402 without LLM fetch`, async (t) => {
+      const fetch = setupHelpBudgetTest(t, {
+        DAILY_BUDGET_CNY: "0.001",
+        ESTIMATED_HELP_COST_CNY: "0.002",
+      });
+      const result = await callJson(route(`help.${kind}`), payload);
+      assertBudgetResponse(result, 402, "DAILY_BUDGET_EXCEEDED");
+      assert.equal(fetch.mock.callCount(), 0);
+    });
+
+    test(`${name} help ${kind}: rate limit returns 429 without another LLM fetch`, async (t) => {
+      const fetch = setupHelpBudgetTest(t, { MAX_REQUESTS_PER_MINUTE: "1" });
+      const first = await callJson(route(`help.${kind}`), payload);
+      assert.equal(first.response.status, 200);
+      assert.equal(first.body.ok, true);
+      assert.equal(first.body.provider, "llm-help");
+      assert.equal(fetch.mock.callCount(), 1);
+
+      const blocked = await callJson(route(`help.${kind}`), payload);
+      assertBudgetResponse(blocked, 429, "RATE_LIMITED");
+      assert.equal(fetch.mock.callCount(), 1);
+    });
+
+    test(`${name} help ${kind}: disabled service returns 503 without LLM fetch`, async (t) => {
+      const fetch = setupHelpBudgetTest(t, { SERVICE_ENABLED: "false" });
+      const result = await callJson(route(`help.${kind}`), payload);
+      assertBudgetResponse(result, 503, "SERVICE_DISABLED");
+      assert.equal(fetch.mock.callCount(), 0);
+    });
+  }
+
+  for (const limit of [
+    {
+      name: "daily budget",
+      env: { DAILY_BUDGET_CNY: "0.014" },
+      status: 402,
+      code: "DAILY_BUDGET_EXCEEDED",
+    },
+    {
+      name: "minute limit",
+      env: { MAX_REQUESTS_PER_MINUTE: "3" },
+      status: 429,
+      code: "RATE_LIMITED",
+    },
+  ]) {
+    test(`${name} analyze and both help routes share the ${limit.name}`, async (t) => {
+      const fetch = setupHelpBudgetTest(t, {
+        ESTIMATED_ANALYSIS_COST_CNY: "0.01",
+        ESTIMATED_HELP_COST_CNY: "0.002",
+        ...limit.env,
+      });
+      const requests = [
+        ["help.predict", HELP_REQUESTS.predict],
+        ["analyze", {
+          docId: `help-budget-${name}-${limit.code}`,
+          mode: "quick",
+          markdown: "# Budget regression paper\n\nA local test fixture.",
+        }],
+        ["help.answer", HELP_REQUESTS.answer],
+      ];
+      for (const [index, [action, payload]] of requests.entries()) {
+        const allowed = await callJson(route(action), payload);
+        assert.equal(allowed.response.status, 200, action);
+        assert.equal(allowed.body.ok, true, action);
+        assert.equal(fetch.mock.callCount(), index + 1, action);
+      }
+      for (const [action, payload] of requests) {
+        const blocked = await callJson(route(action), payload);
+        assertBudgetResponse(blocked, limit.status, limit.code);
+        assert.equal(fetch.mock.callCount(), requests.length, action);
+      }
+    });
+  }
+}
 
 test("SERVICE_ENABLED=false returns 503 before any provider call", async () => {
   resetEnv({

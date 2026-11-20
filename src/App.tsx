@@ -85,6 +85,7 @@ export default function App() {
   const [demoError, setDemoError] = useState<string | null>(null);
   const [demoLoadMs, setDemoLoadMs] = useState<number | null>(null);
   const [serverMode, setServerMode] = useState(false);
+  const [serverModeReady, setServerModeReady] = useState(false);
   const [parsing, setParsing] = useState(false);
   const runRef = useRef(0);
   const lastFileRef = useRef<File | null>(null);
@@ -115,7 +116,9 @@ export default function App() {
   useEffect(() => {
     const controller = new AbortController();
     void getServerHealth(controller.signal).then((health) => {
-      if (health.serverMode) setServerMode(true);
+      if (controller.signal.aborted) return;
+      setServerMode(health.serverMode);
+      setServerModeReady(true);
     });
     return () => controller.abort();
   }, []);
@@ -691,7 +694,7 @@ export default function App() {
 
       <div className="relative z-10">
         {view === "landing" && (
-          <HelpScope screen="landing" paperHash="landing">
+          <HelpScope screen="landing" paperHash="landing" autoBootstrap={serverModeReady && !serverMode}>
             <Landing
               onFile={(file) => void start(file)}
               onOpenSettings={() => setSettingsOpen(true)}
@@ -723,7 +726,7 @@ export default function App() {
         )}
 
         {view === "result" && doc && (
-          <HelpScope screen="result" paperHash={doc.hash}>
+          <HelpScope screen="result" paperHash={doc.hash} autoBootstrap={serverModeReady && !serverMode}>
             <ResultView
               doc={doc}
               analysis={analysis}

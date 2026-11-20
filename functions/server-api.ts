@@ -1,4 +1,4 @@
-import { guardAnalysisBudget, serviceEnabled } from "./budget.ts";
+import { guardAnalysisBudget, guardHelpBudget, serviceEnabled } from "./budget.ts";
 import { readEnv, serverModeEnabled } from "./providers/env.ts";
 import { ProviderError } from "./providers/errors.ts";
 import { getLlmProvider, getParserProvider, promptVersion } from "./providers/index.ts";
@@ -364,11 +364,17 @@ export async function handleServerApi(
     if (path === "/api/analyze" && request.method === "POST") {
       return await handleAnalyze(request);
     }
-    if (path === "/api/help/predict" && request.method === "POST") {
-      return await handleHelpPredict(request);
-    }
-    if (path === "/api/help/answer" && request.method === "POST") {
-      return await handleHelpAnswer(request);
+    if (
+      (path === "/api/help/predict" || path === "/api/help/answer") &&
+      request.method === "POST"
+    ) {
+      const budget = guardHelpBudget();
+      if (!budget.ok) {
+        return json({ ok: false, code: budget.code, message: budget.message }, budget.status);
+      }
+      return path === "/api/help/predict"
+        ? await handleHelpPredict(request)
+        : await handleHelpAnswer(request);
     }
     if (path.startsWith("/api/jobs/") && request.method === "GET") {
       return handleJob(path.slice("/api/jobs/".length));

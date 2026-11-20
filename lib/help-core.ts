@@ -110,8 +110,11 @@ export function sanitizePredictions(items: PredictItem[], screen: HelpScreen): P
 export async function predictHelp(options: {
   screen: HelpScreen;
   paperHash: string;
-  fetcher: PredictFetcher;
+  fetcher?: PredictFetcher;
 }): Promise<{ items: PredictItem[]; source: "api" | "fallback" }> {
+  if (!options.fetcher) {
+    return { items: predictionsForScreen(options.screen), source: "fallback" };
+  }
   try {
     const items = await options.fetcher(options.screen, options.paperHash);
     return { items: sanitizePredictions(items, options.screen), source: "api" };
@@ -132,8 +135,10 @@ export async function bootstrapHelp(options: {
   cache: HelpCache;
   predictFetcher: PredictFetcher;
   answerFetcher: AnswerFetcher;
+  autoBootstrap?: boolean;
   isCancelled?: () => boolean;
 }): Promise<void> {
+  if (options.autoBootstrap === false || options.isCancelled?.()) return;
   const key = `${options.screen}:${options.paperHash}`;
   const done = screenDone.get(key) ?? new Set<string>();
   screenDone.set(key, done);

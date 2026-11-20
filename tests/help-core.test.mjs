@@ -9,7 +9,7 @@ import {
   resetHelpLimits,
   sanitizePredictions,
 } from "../lib/help-core.ts";
-import { staticHelpAnswer } from "../functions/help/registry.ts";
+import { predictionsForScreen, staticHelpAnswer } from "../functions/help/registry.ts";
 
 function createCache(initial = {}) {
   const map = new Map(Object.entries(initial));
@@ -163,6 +163,51 @@ test("bootstrap pre-generates top items into cache", async () => {
   assert.ok(await cache.get(helpCacheKey("landing.upload", "paper-5", "default")));
   assert.ok(await cache.get(helpCacheKey("landing.parseMode", "paper-5", "default")));
   assert.equal(await cache.get(helpCacheKey("landing.privacy", "paper-5", "default")), null);
+});
+
+test("disabled bootstrap never calls predict or answer and leaves on-demand help available", async () => {
+  resetHelpLimits();
+  const cache = createCache();
+  let predictCalls = 0;
+  let answerCalls = 0;
+  const answerFetcher = async (helpId, variant) => {
+    answerCalls += 1;
+    return { helpId, variant, what: "w", why: "y", effect: "e" };
+  };
+  for (const screen of ["landing", "result"]) {
+    await bootstrapHelp({
+      screen,
+      paperHash: "no-bootstrap",
+      autoBootstrap: false,
+      cache,
+      predictFetcher: async () => {
+        predictCalls += 1;
+        return predictionsForScreen(screen);
+      },
+      answerFetcher,
+    });
+  }
+  assert.equal(predictCalls, 0);
+  assert.equal(answerCalls, 0);
+  assert.equal(cache.map.size, 0);
+
+  const result = await loadHelpAnswer({
+    helpId: "result.citationCheck",
+    variant: "default",
+    paperHash: "no-bootstrap",
+    cache,
+    fetcher: answerFetcher,
+  });
+  assert.equal(result.source, "api");
+  assert.equal(answerCalls, 1);
+});
+
+test("predictions without a fetcher use local screen predictions", async () => {
+  for (const screen of ["landing", "result"]) {
+    const result = await predictHelp({ screen, paperHash: "local-predictions" });
+    assert.equal(result.source, "fallback");
+    assert.deepEqual(result.items, predictionsForScreen(screen));
+  }
 });
 
 test("same control can regenerate at most once", () => {
