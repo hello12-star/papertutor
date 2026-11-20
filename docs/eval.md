@@ -1,7 +1,7 @@
 # PaperTutor P0 验收清单与测试映射
 
-> 基线分支：`feat/m1e5-progress-persist`（从 `feat/m1e4-budget-cap` 8d2a8f2 新建）。
-> 当前质量门禁：`npm test` **42/42 通过**；`npm run lint` **0 error / 1 warning**；`npm run test:e2e` **8/8 通过**；`npm run build` 通过（前端 `tsc --noEmit` + Vite）；函数侧 `tsc` 通过。
+> 当前验收基线：`feat/m1f-deploy-smoke`，HEAD `80522f6`；M1-F4 为未提交本地改动。
+> 当前质量门禁（2026-11-20）：`npm test` **128/128 通过**；`npm run lint` **0 error / 1 warning**；`npm run test:e2e` **38/38 通过**；`npm run build` 通过（前端 `tsc --noEmit` + Vite）；函数侧 `tsc` 通过；dist 中 `ALIYUN_` / `DASHSCOPE_` / `secretKey` / `secret_key` 均 **0**。证据与边界见 [M1-F4](m1f4.md)，未部署、未 commit、未 push，真实付费调用 0。
 > Lighthouse：移动端 **96 / 95 / 100**，桌面端 **100 / 95 / 100**（Performance / Accessibility / Best Practices）。
 > 本文区分四类证据：**自动化测试**（`node --test`）、**lint**（ESLint）、**Playwright e2e**（仓库内 `e2e/`，系统 Edge）、**未验证**（需要真实环境或人工）。临时 `/tmp/qa` 仍用于额外的移动端/性能检查。
 
@@ -9,14 +9,15 @@
 
 | 测试文件 | 用例数 | 主要覆盖点 |
 |---|---:|---|
-| `tests/server-skeleton.test.mjs` | 12 | `SERVER_MODE` 开关；缺 DocMind/LLM 环境变量时不发起外部 fetch；mock parser + mock LLM 端到端与缓存键；错误码；help predict/answer；help 无外部 fetch；`SERVICE_ENABLED=false` 503；每日预算 402；生产环境拒绝 mock provider |
-| `tests/help-core.test.mjs` | 8 | 帮助缓存键前缀/版本；缓存命中不调用 fetcher；缓存未命中写入；超时/离线回退静态帮助；预测分数范围/排序/屏幕过滤；预测失败回退；启动预生成；同一控件最多重生成一次 |
+| `tests/server-skeleton.test.mjs` | 31 | `SERVER_MODE` 开关；缺 DocMind/LLM 环境变量时不发起外部 fetch；mock parser + mock LLM 端到端与缓存键；错误码；help predict/answer；help 无外部 fetch；`SERVICE_ENABLED=false` 503；每日预算 402；生产环境拒绝 mock provider |
+| `tests/help-core.test.mjs` | 10 | 帮助缓存键前缀/版本；缓存命中不调用 fetcher；缓存未命中写入；超时/离线回退静态帮助；预测分数范围/排序/屏幕过滤；预测失败回退；启动预生成；同一控件最多重生成一次 |
 | `tests/export-history.test.mjs` | 6 | 导出 Markdown 章节；大纲；自测题离线生成；文件名清洗；历史去重/最多 10 条；历史标题回退 |
 | `tests/demo-papers.test.mjs` | 4 | 3 篇示例索引与 approved 状态；只含引用节选/无密钥字段；速览/骨架/公式完整；每条引用都能在节选中匹配 |
 | `tests/study-tools.test.mjs` | 3 | 自测答案与引用；学习报告基于本地进度生成；从 Markdown 提取公式卡 |
-| `tests/budget.test.mjs` | 5 | 停服 503；预算耗尽 402 且不超支；限流 429 与窗口重置；跨 UTC 日重置；未设置 `DAILY_BUDGET_CNY` 时默认 1 元 |
+| `tests/budget.test.mjs` | 11 | 停服 503；预算耗尽 402 且不超支；限流 429 与窗口重置；跨 UTC 日重置；未设置 `DAILY_BUDGET_CNY` 时默认 1 元 |
 | `tests/parse-control.test.mjs` | 4 | 同一时间只允许一个解析请求；取消中止并清空 busy；晚到完成不释放新请求；完成后可重试 |
-| **合计** | **42** | — |
+| `tests/paper-route.test.mjs` | 59 | hash 合法/非法/空/编码字符；history 优先、完整 cache 回退、缺失/失败降级；18 个恢复场景均断言 fetch=0 |
+| **合计** | **128** | 既有 69 + M1-F4 新增 59 |
 
 运行命令：
 
@@ -40,12 +41,13 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | 全新浏览器、无 Key，点示例 2 秒内出完整速览与骨架 | `demo-papers`：3 篇 approved、完整材料、引用可校验 | `docs/trackb`：示例加载 314–553 ms；三篇均可打开 | 数据/交互已覆盖；2 秒阈值无自动化性能测试 |
 | 真实 10 页 PDF：进度可见、可取消、失败可重试、可看原文 | `parse-control`：取消/重试/晚到响应；`server-skeleton`：mock 解析端到端 | `docs/m1e1`：1440/390 的 3/10 进度、取消回首页、失败重试、同一文件；`docs/m1e2`：320–430 进度/失败页 | mock + 浏览器通过；**真实 MinerU 未验证** |
 | verified 引用 100% 可点击跳转并高亮；未定位有提示 | `demo-papers`：所有示例引用可匹配；`export-history`：导出包含引用 | M1-A 浏览器验收：引用定位抽屉、偏移高亮、未定位提示；Track B 示例结果页 | 示例/夹具通过；**真实论文 100% 未验证** |
-| 四步引导可完成、刷新保留；自测可展开答案；学习报告可生成 | `export-history`：自测题/导出；`study-tools`：答案/报告；e2e：刷新后从最近分析重开同一篇，恢复 activeStep 与 2 个已展开题；删除历史同步清进度 | M1-D1：四步导航/历史；Track B：自测展开/学习报告下载；e2e 8/8 | 已覆盖（进度按论文 hash 存 IndexedDB） |
+| 四步引导可完成、刷新保留；自测可展开答案；学习报告可生成 | `export-history`：自测题/导出；`study-tools`：答案/报告；e2e：刷新直接回结果页，恢复 activeStep 与 2 个已展开题；历史重开与删除清进度仍通过 | M1-D1：四步导航/历史；Track B：自测展开/学习报告下载；M1-F4 桌面/移动各验证 | 已覆盖（进度按论文 hash 存 IndexedDB） |
+| 刷新或直接访问 URL 自动回到结果页，未知 hash 友好降级，后退/前进可用 | `paper-route`：59 单测，18 个恢复场景 fetch=0；e2e：history/cache 恢复、编码 URL、未知 hash、IndexedDB 异常、导航竞态 | [M1-F4](m1f4.md)：1440/390，38/38 e2e（新增 24/24）；恢复后观察 1100ms，所有 Function（含 health/help）新增请求 0 | **已覆盖（本地 hash 路由；无自动 parse/analyze/help）** |
 | 帮助预生成 <200ms；未命中 <6s；离线/失败有兜底；无报错弹窗 | `help-core`：缓存命中/未命中/超时回退/预生成/重生成限制；`server-skeleton`：help mock 无外部 fetch | M1-C 浏览器验收：cache/api/fallback、popover/sheet、0 console error；M1-E5 单次实测：命中 **43.6ms**（cache），未命中 **27.5ms**（本地 mock api） | 本地达标；**真实 provider/部署环境未验证** |
 | 方法流程图、实验-结论表、公式卡桌面和移动可读 | `study-tools`：公式提取 | Track B：流程图、实验表、公式卡；M1-E2：320–430 无横向滚动 | 部分覆盖；无 DOM/视觉回归测试 |
 | 前端 bundle/localStorage/网络无密钥；付费接口只允许本站 Origin；无公开免鉴权代理；无 CORS `*` | `demo-papers`：示例 JSON 无密钥字段；`server-skeleton`：生产拒绝 mock | Track B/M1-E1 bundle 审计：QA 夹具/mock-llm/env 名均 0；`debug.env` 只读检查 | **部署后 Origin/CORS/网络请求未验证**；无自动化密钥扫描 |
 | 模拟超预算 402；模拟停服 503；3 篇成本写入 `docs/cost.md`；每日上限生效 | `budget`：503/402/429/跨日；`server-skeleton`：SERVICE_ENABLED 503、预算 402 无 LLM fetch | [docs/cost.md](cost.md) 已完成估算 | 逻辑通过；**每日上限仍是进程内 mock，未持久化** |
-| build/lint/typecheck/Playwright 冒烟；320/360/390/414 无横向滚动；Lighthouse 阈值 | `npm run build`（tsc + Vite）通过；`npm run lint` 0 error/1 warning；`npm run test:e2e` 8/8 | M1-E2：320/360/390/414/430 四类页面 scrollWidth==clientWidth、0 console error；E2E：desktop 1440 + mobile 390 的示例/失败/取消/进度恢复；Lighthouse：移动 96/95/100，桌面 100/95/100 | **已补齐**；Playwright 尚未接 CI |
+| build/lint/typecheck/Playwright 冒烟；320/360/390/414 无横向滚动；Lighthouse 阈值 | `npm run build`（tsc + Vite）通过；`npm run lint` 0 error/1 warning；`npm run test:e2e` 38/38 | M1-E2：320/360/390/414/430 四类页面 scrollWidth==clientWidth、0 console error；E2E：desktop 1440 + mobile 390 的示例/失败/取消/进度恢复；Lighthouse：移动 96/95/100，桌面 100/95/100 | **已补齐**；Playwright 尚未接 CI |
 
 > M1-E2 元素扫描中，进度条内部填充元素出现负 `left`（进度为 0 时的 transform），其父容器 `overflow-hidden`，页面 `scrollWidth` 未变化；不计为页面横向滚动。
 
@@ -73,10 +75,9 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 
 ## 4. 其他仍需补齐的项
 
-- **Playwright CI**：`e2e/` 已入仓（8/8 通过），但尚未接入 CI；`/tmp/qa` 仍保留额外的移动端/性能脚本。
+- **Playwright CI**：`e2e/` 已入仓（当前本地 38/38 通过），但尚未接入 CI；`/tmp/qa` 仍保留额外的移动端/性能脚本。
 - **真实论文引用定位**：M1-A 和 Track B 主要验证夹具/示例；真实论文的 100% 定位/高亮仍需抽样。
 - **真实 provider 帮助延迟**：M1-E5 只在本地 mock help 上计时；真实 LLM/线上网关下的 <200ms / <6s 未验证。
-- **刷新后自动回到结果页**：当前应用没有路由；e2e 的恢复路径是“刷新后从最近分析重开同一篇”，不是 URL 自动恢复。
 - **预算持久化**：`functions/budget.ts` 是进程内计数，冷启动重置；上线前必须改为持久化。
 - **真实 DocMind smoke**：Secret 仍为 false；`PARSER_NOT_IMPLEMENTED` 仍未替换为真实提交/轮询。
 - **真实移动设备**：M1-E2/M1-E3 使用 Edge 模拟视口；未在 iOS Safari/Android Chrome 真机验证。
@@ -97,12 +98,13 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | 10 页 PDF fixture / 生成脚本 | [e2e/fixtures/ten-pages.pdf](../e2e/fixtures/ten-pages.pdf)、[e2e/fixtures/generate-ten-pages.mjs](../e2e/fixtures/generate-ten-pages.mjs) |
 | M1-E5 进度恢复/清理 e2e 输出 | [docs/m1e5/e2e-output.txt](m1e5/e2e-output.txt) |
 | M1-E5 帮助延迟 | [docs/m1e5/help-latency.json](m1e5/help-latency.json) |
-| 测试命令与结果 | `npm test`（42/42）、`npm run lint`、`npm run test:e2e`（8/8）、`npm run build`、函数侧 `tsc` |
+| M1-F4 URL 恢复/未知 hash/存储失败/零请求证据 | [docs/m1f4.md](m1f4.md)、[e2e/app.spec.ts](../e2e/app.spec.ts)、[tests/paper-route.test.mjs](../tests/paper-route.test.mjs) |
+| 当前测试命令与结果 | `npm test`（128/128）、`npm run lint`、`npm run test:e2e`（38/38）、`npm run build`、函数侧 `tsc`、dist 密钥审计；详见 [M1-F4](m1f4.md) |
 
 ## 6. 结论
 
-- **已达到自动化/本地证据**：示例演示、引用校验（示例）、帮助缓存/回退、预算 402/503、解析取消/重试、学习报告、320–430 无横向滚动、lint 0 error、Playwright 8/8、Lighthouse 移动/桌面达标、进度按论文 hash 持久化/恢复/清理、帮助延迟本地单次实测达标。
-- **不能宣称已达到**：真实 MinerU、真实 LLM、部署后的 Origin/超时/流式、Playwright CI、真实移动设备、真实 provider 下的帮助延迟、URL 自动恢复结果页。
+- **已达到自动化/本地证据**：示例演示、引用校验（示例）、帮助缓存/回退、预算 402/503、解析取消/重试、学习报告、320–430 无横向滚动、lint 0 error、Playwright 38/38、Lighthouse 移动/桌面历史结果达标、进度按论文 hash 持久化/恢复/清理、帮助延迟本地单次实测达标、URL 自动恢复结果页（恢复 Function 新增请求 0，含未知 hash/存储异常/后退前进）。
+- **不能宣称已达到**：真实 MinerU、真实 LLM、部署后的 Origin/超时/流式、Playwright CI、真实移动设备、真实 provider 下的帮助延迟。
 - 比赛提交前，至少应完成第 3 节三项真实环境验证；否则应在验收说明中明确标注“本地/mock 验证”。
 
 ## 7. M1-E3 质量门禁结果（2026-11-18）
@@ -133,4 +135,4 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
   - 预生成控件“引用校验”：**43.6ms**，`source=cache`，<200ms 达标。
   - 未命中控件“导出”：**27.5ms**，`source=api`（本地 mock help），<6s 达标。
   - 证据：[docs/m1e5/help-latency.json](m1e5/help-latency.json)；命令 `npm run measure:help`。
-- **边界**：帮助延迟是本地 mock help 的单次测量，不是真实 LLM/线上网关；刷新后需要从最近分析重开同一篇（应用没有 URL 路由自动恢复结果页）。
+- **历史边界**：帮助延迟是本地 mock help 的单次测量，不是真实 LLM/线上网关；M1-E5 当时刷新后需从最近分析重开。**M1-F4 已补齐 URL 自动恢复**，当前证据见 [M1-F4](m1f4.md)。

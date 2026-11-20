@@ -446,24 +446,26 @@ export function ResultView({
                 阅读路径
               </p>
               {NAV.map((item) => (
-                <a
+                <button
                   key={item.id}
-                  href={`#${item.id}`}
-                  className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  type="button"
+                  onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                  className="group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
                   <span className="font-mono text-[10px] text-border group-hover:text-primary">
                     {item.index}
                   </span>
                   {item.label}
-                </a>
+                </button>
               ))}
               <div className="mt-4 border-t pt-3">
-                <a
-                  href="#raw"
-                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                <button
+                  type="button"
+                  onClick={() => document.getElementById("raw")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
                   <ListTree className="size-3.5" /> 解析原文
-                </a>
+                </button>
               </div>
             </nav>
           </aside>

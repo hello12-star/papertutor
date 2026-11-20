@@ -18,6 +18,7 @@ import {
 import { saveHistory } from "@/lib/history-db";
 import { historyTitle, type HistoryRecord } from "@/lib/history-core";
 import { createParseControl, type ParseControl } from "@/lib/parse-control";
+import { formatPaperHash, parsePaperHash, restorePaperResult } from "@/lib/paper-route";
 import { countPdfPages, formatBytes, sha256Hex } from "@/lib/files";
 import { LlmError } from "@/lib/llm";
 import { verifyModel } from "@/lib/model-check";
@@ -31,7 +32,14 @@ import {
 import { loadSettings, saveSettings, type Settings } from "@/lib/settings";
 import type { Analysis, AppError, CitationStats, ParsedDoc, Phase } from "@/lib/types";
 
-type View = "landing" | "working" | "result";
+type View = "landing" | "working" | "result" | "restoring";
+
+function writeHash(hash: string, replace = false): void {
+  if (window.location.hash === hash) return;
+  const url = `${window.location.pathname}${window.location.search}${hash}`;
+  if (replace) window.history.replaceState(null, "", url);
+  else window.history.pushState(null, "", url);
+}
 
 function initialPhases(): Phase[] {
   return [
@@ -71,7 +79,10 @@ function phaseStateLabel(state: string): string {
 export default function App() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [view, setView] = useState<View>("landing");
+  const [initialRoute] = useState(() => parsePaperHash(window.location.hash));
+  const [view, setView] = useState<View>(initialRoute.kind === "home" ? "landing" : "restoring");
+  const [localNavigation, setLocalNavigation] = useState(initialRoute.kind !== "home");
+  const [routeNotice, setRouteNotice] = useState<string | null>(null);
   const [doc, setDoc] = useState<ParsedDoc | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [stats, setStats] = useState<CitationStats | null>(null);
@@ -114,6 +125,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (localNavigation || serverModeReady) return;
     const controller = new AbortController();
     void getServerHealth(controller.signal).then((health) => {
       if (controller.signal.aborted) return;
@@ -121,21 +133,72 @@ export default function App() {
       setServerModeReady(true);
     });
     return () => controller.abort();
-  }, []);
+  }, [localNavigation, serverModeReady]);
 
   useEffect(() => {
-    if (!doc || !analysis) return;
+    const restoreLocation = async () => {
+      const hash = window.location.hash;
+      const route = parsePaperHash(hash);
+      resetView();
+      setLocalNavigation(true);
+      setRouteNotice(null);
+      if (route.kind === "home") return;
+      const missing = "本地没有这篇论文的缓存，请重新上传";
+      if (route.kind === "unknown") {
+        setRouteNotice(missing);
+        return;
+      }
+      setView("restoring");
+      const run = runRef.current;
+      const restored = await restorePaperResult(route.paperHash);
+      if (runRef.current !== run || window.location.hash !== hash) return;
+      if (restored) {
+        try {
+          const citationStats = verifyCitations(restored.doc.markdown, restored.analysis);
+          setDoc(restored.doc);
+          setAnalysis(restored.analysis);
+          setStats(citationStats);
+          setCacheHit(true);
+          setView("result");
+          writeHash(formatPaperHash(restored.doc.hash), true);
+          return;
+        } catch {
+          // Unreadable local records must not trigger a replacement analysis.
+        }
+      }
+      setView("landing");
+      setRouteNotice(missing);
+    };
+    const onHashChange = () => void restoreLocation();
+    window.addEventListener("hashchange", onHashChange);
+    if (initialRoute.kind !== "home") onHashChange();
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+      runRef.current += 1;
+    };
+  }, [initialRoute]);
+
+  useEffect(() => {
+    if (!doc || !analysis || view !== "result") return;
+    let cancelled = false;
+    const run = runRef.current;
+    const locationHash = window.location.hash;
     void saveHistory({
       paperHash: doc.hash,
       title: historyTitle(doc, analysis),
       createdAt: Date.now(),
       doc,
       analysis,
+    }).then(() => {
+      if (!cancelled && runRef.current === run && window.location.hash === locationHash) {
+        writeHash(formatPaperHash(doc.hash));
+      }
     });
-  }, [doc, analysis]);
+    return () => { cancelled = true; };
+  }, [doc, analysis, view]);
 
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
+    if (!import.meta.env.DEV || initialRoute.kind !== "home") return;
     const qa = new URLSearchParams(window.location.search).get("qa");
     if (qa !== "m1a" && qa !== "server") return;
     let cancelled = false;
@@ -237,7 +300,7 @@ export default function App() {
     );
   };
 
-  const resetToLanding = () => {
+  function resetView() {
     parseControlRef.current?.cancel();
     lastFileRef.current = null;
     setParsing(false);
@@ -250,7 +313,15 @@ export default function App() {
     setGenerating(false);
     setCacheHit(false);
     setDemoLoadMs(null);
+    setDemoLoadingId(null);
     setPhases(initialPhases());
+  }
+
+  const resetToLanding = () => {
+    writeHash("");
+    resetView();
+    setLocalNavigation(false);
+    setRouteNotice(null);
   };
 
   const failWith = (nextError: AppError, targetView: View) => {
@@ -366,6 +437,8 @@ export default function App() {
     const stale = () => runRef.current !== run;
 
     try {
+    writeHash("");
+    setRouteNotice(null);
     setError(null);
     setAnalysis(null);
     setStats(null);
@@ -417,7 +490,17 @@ export default function App() {
       detail: `${formatBytes(file.size)}${pages ? ` · ${pages} 页` : ""}`,
     });
 
-    if (serverMode) {
+    let useServerMode = serverMode;
+    if (!serverModeReady) {
+      const health = await getServerHealth(lease.signal);
+      if (stale()) return;
+      useServerMode = health.serverMode;
+      setServerMode(health.serverMode);
+      setServerModeReady(true);
+    }
+    setLocalNavigation(false);
+
+    if (useServerMode) {
       updatePhase("parse", {
         status: "active",
         detail: "上传到服务端，DocMind 解析中…",
@@ -567,19 +650,7 @@ export default function App() {
   };
 
   const cancelParse = () => {
-    parseControlRef.current?.cancel();
-    runRef.current += 1;
-    lastFileRef.current = null;
-    setParsing(false);
-    setView("landing");
-    setDoc(null);
-    setAnalysis(null);
-    setStats(null);
-    setError(null);
-    setGenerating(false);
-    setCacheHit(false);
-    setDemoLoadMs(null);
-    setPhases(initialPhases());
+    resetToLanding();
     setFileMeta({ name: "", size: 0 });
   };
 
@@ -597,6 +668,8 @@ export default function App() {
     const run = ++runRef.current;
     setDemoLoadingId(meta.id);
     setDemoError(null);
+    setRouteNotice(null);
+    setLocalNavigation(false);
     try {
       const paper = await loadDemoPaper(meta);
       if (runRef.current !== run) return;
@@ -619,6 +692,8 @@ export default function App() {
   };
 
   const openHistory = (record: HistoryRecord) => {
+    setLocalNavigation(true);
+    setRouteNotice(null);
     parseControlRef.current?.cancel();
     lastFileRef.current = null;
     setParsing(false);
@@ -693,8 +768,25 @@ export default function App() {
       </header>
 
       <div className="relative z-10">
+        {(view === "restoring" || routeNotice) && (
+          <section className="mx-auto w-full max-w-6xl px-6 py-8" aria-label="本地论文恢复">
+            <div className="rounded-xl border bg-card p-6">
+              <p role="status" className="text-sm font-medium">
+                {view === "restoring" ? "正在从本地恢复论文…" : routeNotice}
+              </p>
+              {routeNotice && (
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  链接只能恢复当前浏览器保存的结果；清理缓存、更换浏览器或禁用本地存储后，需要重新上传。
+                </p>
+              )}
+              <Button variant="outline" size="sm" className="mt-4" onClick={resetToLanding}>
+                回首页
+              </Button>
+            </div>
+          </section>
+        )}
         {view === "landing" && (
-          <HelpScope screen="landing" paperHash="landing" autoBootstrap={serverModeReady && !serverMode}>
+          <HelpScope screen="landing" paperHash="landing" autoBootstrap={serverModeReady && !serverMode && !localNavigation}>
             <Landing
               onFile={(file) => void start(file)}
               onOpenSettings={() => setSettingsOpen(true)}
@@ -726,7 +818,7 @@ export default function App() {
         )}
 
         {view === "result" && doc && (
-          <HelpScope screen="result" paperHash={doc.hash} autoBootstrap={serverModeReady && !serverMode}>
+          <HelpScope screen="result" paperHash={doc.hash} autoBootstrap={serverModeReady && !serverMode && !localNavigation}>
             <ResultView
               doc={doc}
               analysis={analysis}

@@ -40,7 +40,15 @@ function openDb(): Promise<IDBDatabase | null> {
           db.createObjectStore(PROGRESS_STORE);
         }
       };
-      request.onsuccess = () => resolve(request.result);
+      let blocked = false;
+      request.onblocked = () => {
+        blocked = true;
+        resolve(null);
+      };
+      request.onsuccess = () => {
+        if (blocked) request.result.close();
+        else resolve(request.result);
+      };
       request.onerror = () => resolve(null);
     } catch {
       resolve(null);
@@ -99,6 +107,8 @@ export async function listHistory(): Promise<HistoryRecord[]> {
   return new Promise((resolve) => {
     try {
       const tx = db.transaction(STORE, "readonly");
+      tx.onabort = () => resolve([]);
+      tx.onerror = () => resolve([]);
       const request = tx.objectStore(STORE).getAll();
       request.onsuccess = () => {
         const records = (request.result as HistoryRecord[] | undefined) ?? [];
