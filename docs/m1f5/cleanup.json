@@ -1,0 +1,15 @@
+{
+  "capturedAt": "2026-11-20T07:01:04.897Z",
+  "ports": [
+    {
+      "port": 6396,
+      "closed": true
+    },
+    {
+      "port": 6397,
+      "closed": true
+    }
+  ],
+  "temporaryBrowserPagesRemaining": 0,
+  "existingProcessesUntouched": true
+}

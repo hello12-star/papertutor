@@ -1,8 +1,9 @@
 # PaperTutor P0 验收清单与测试映射
 
-> 当前验收基线：`feat/m1f-deploy-smoke`，HEAD `80522f6`；M1-F4 为未提交本地改动。
-> 当前质量门禁（2026-11-20）：`npm test` **128/128 通过**；`npm run lint` **0 error / 1 warning**；`npm run test:e2e` **38/38 通过**；`npm run build` 通过（前端 `tsc --noEmit` + Vite）；函数侧 `tsc` 通过；dist 中 `ALIYUN_` / `DASHSCOPE_` / `secretKey` / `secret_key` 均 **0**。证据与边界见 [M1-F4](m1f4.md)，未部署、未 commit、未 push，真实付费调用 0。
-> Lighthouse：移动端 **96 / 95 / 100**，桌面端 **100 / 95 / 100**（Performance / Accessibility / Best Practices）。
+> 当前验收基线：`feat/m1f-deploy-smoke`，HEAD `0fe85be`（M1-F4 已提交）；M1-F5 为未提交本地改动。
+> 当前质量门禁（2026-11-20）：`npm test` **130/130 通过**（保留既有 128）；`npm run lint -- --max-warnings 0` **0 error / 0 warning**；`npm run test:e2e` **56/56 通过**（保留既有 38）；`npm run build` 通过（前端 `tsc --noEmit` + Vite，无 >500 kB 提示）；函数侧 `tsc` 通过；dist 中 `ALIYUN_` / `DASHSCOPE_` / `secretKey` / `secret_key` 均 **0**。证据与边界见 [M1-F5](m1f5.md)，本轮未部署、未 commit、未 push，真实付费调用 0。
+> 首屏入口：**502.977 → 298.965 kB**；实际 gzip：**156.613 → 96.119 kB**；production Edge 网络检查确认首页仅加载入口 JS，不加载 pdfjs/worker、结果图表、导出或弹层。
+> Lighthouse 本轮复测：移动端 **99 / 95 / 100**，桌面端 **96 / 95 / 100**（Performance / Accessibility / Best Practices）；production preview + 系统 Edge，详见 [原始报告与汇总](m1f5/lighthouse-summary.json)。
 > 本文区分四类证据：**自动化测试**（`node --test`）、**lint**（ESLint）、**Playwright e2e**（仓库内 `e2e/`，系统 Edge）、**未验证**（需要真实环境或人工）。临时 `/tmp/qa` 仍用于额外的移动端/性能检查。
 
 ## 1. 自动化测试总览
@@ -13,11 +14,11 @@
 | `tests/help-core.test.mjs` | 10 | 帮助缓存键前缀/版本；缓存命中不调用 fetcher；缓存未命中写入；超时/离线回退静态帮助；预测分数范围/排序/屏幕过滤；预测失败回退；启动预生成；同一控件最多重生成一次 |
 | `tests/export-history.test.mjs` | 6 | 导出 Markdown 章节；大纲；自测题离线生成；文件名清洗；历史去重/最多 10 条；历史标题回退 |
 | `tests/demo-papers.test.mjs` | 4 | 3 篇示例索引与 approved 状态；只含引用节选/无密钥字段；速览/骨架/公式完整；每条引用都能在节选中匹配 |
-| `tests/study-tools.test.mjs` | 3 | 自测答案与引用；学习报告基于本地进度生成；从 Markdown 提取公式卡 |
+| `tests/study-tools.test.mjs` | 5 | 自测答案与引用；学习报告基于本地进度生成；公式卡；生成模块导入零请求、mock 生成结构与 401 不重试 |
 | `tests/budget.test.mjs` | 11 | 停服 503；预算耗尽 402 且不超支；限流 429 与窗口重置；跨 UTC 日重置；未设置 `DAILY_BUDGET_CNY` 时默认 1 元 |
 | `tests/parse-control.test.mjs` | 4 | 同一时间只允许一个解析请求；取消中止并清空 busy；晚到完成不释放新请求；完成后可重试 |
 | `tests/paper-route.test.mjs` | 59 | hash 合法/非法/空/编码字符；history 优先、完整 cache 回退、缺失/失败降级；18 个恢复场景均断言 fetch=0 |
-| **合计** | **128** | 既有 69 + M1-F4 新增 59 |
+| **合计** | **130** | M1-F4 基线 128 + M1-F5 新增 2 |
 
 运行命令：
 
@@ -32,7 +33,7 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
   --target ES2022 --skipLibCheck functions/handler.ts
 ```
 
-说明：`npm run lint` 使用 `eslint.config.mjs`，覆盖 `src/components/lib/functions/tests`（以及 `e2e`、`dev`、`scripts`、`hooks`）；当前 0 error，唯一 warning 是 `components/ui/combobox.tsx` 的未使用参数。`npm run test:e2e` 使用系统 Edge（Playwright `channel: "msedge"`）和 `e2e/fixtures/ten-pages.pdf`，已入仓但尚未接 CI。
+说明：`npm run lint` 使用 `eslint.config.mjs`，覆盖 `src/components/lib/functions/tests`（以及 `e2e`、`dev`、`scripts`、`hooks`）；M1-F5 已修复 `components/ui/combobox.tsx` 的未使用参数，当前 0 error / 0 warning，并以 `--max-warnings 0` 验证。`npm run test:e2e` 使用系统 Edge（Playwright `channel: "msedge"`）和 `e2e/fixtures/ten-pages.pdf`，已入仓但尚未接 CI。
 
 ## 2. P0 验收项与现有证据
 
@@ -44,10 +45,10 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | 四步引导可完成、刷新保留；自测可展开答案；学习报告可生成 | `export-history`：自测题/导出；`study-tools`：答案/报告；e2e：刷新直接回结果页，恢复 activeStep 与 2 个已展开题；历史重开与删除清进度仍通过 | M1-D1：四步导航/历史；Track B：自测展开/学习报告下载；M1-F4 桌面/移动各验证 | 已覆盖（进度按论文 hash 存 IndexedDB） |
 | 刷新或直接访问 URL 自动回到结果页，未知 hash 友好降级，后退/前进可用 | `paper-route`：59 单测，18 个恢复场景 fetch=0；e2e：history/cache 恢复、编码 URL、未知 hash、IndexedDB 异常、导航竞态 | [M1-F4](m1f4.md)：1440/390，38/38 e2e（新增 24/24）；恢复后观察 1100ms，所有 Function（含 health/help）新增请求 0 | **已覆盖（本地 hash 路由；无自动 parse/analyze/help）** |
 | 帮助预生成 <200ms；未命中 <6s；离线/失败有兜底；无报错弹窗 | `help-core`：缓存命中/未命中/超时回退/预生成/重生成限制；`server-skeleton`：help mock 无外部 fetch | M1-C 浏览器验收：cache/api/fallback、popover/sheet、0 console error；M1-E5 单次实测：命中 **43.6ms**（cache），未命中 **27.5ms**（本地 mock api） | 本地达标；**真实 provider/部署环境未验证** |
-| 方法流程图、实验-结论表、公式卡桌面和移动可读 | `study-tools`：公式提取 | Track B：流程图、实验表、公式卡；M1-E2：320–430 无横向滚动 | 部分覆盖；无 DOM/视觉回归测试 |
+| 方法流程图、实验-结论表、公式卡桌面和移动可读 | `study-tools`：公式提取；M1-F5 e2e：流程图、实验名称/实际发现可见 | Track B；M1-E2：320–430 无横向滚动；M1-F5 production Edge 1440/390：结果页按需加载、3 张公式卡、无页面横向滚动 | 已有 DOM 回归；无像素级视觉回归 |
 | 前端 bundle/localStorage/网络无密钥；付费接口只允许本站 Origin；无公开免鉴权代理；无 CORS `*` | `demo-papers`：示例 JSON 无密钥字段；`server-skeleton`：生产拒绝 mock | Track B/M1-E1 bundle 审计：QA 夹具/mock-llm/env 名均 0；`debug.env` 只读检查 | **部署后 Origin/CORS/网络请求未验证**；无自动化密钥扫描 |
 | 模拟超预算 402；模拟停服 503；3 篇成本写入 `docs/cost.md`；每日上限生效 | `budget`：503/402/429/跨日；`server-skeleton`：SERVICE_ENABLED 503、预算 402 无 LLM fetch | [docs/cost.md](cost.md) 已完成估算 | 逻辑通过；**每日上限仍是进程内 mock，未持久化** |
-| build/lint/typecheck/Playwright 冒烟；320/360/390/414 无横向滚动；Lighthouse 阈值 | `npm run build`（tsc + Vite）通过；`npm run lint` 0 error/1 warning；`npm run test:e2e` 38/38 | M1-E2：320/360/390/414/430 四类页面 scrollWidth==clientWidth、0 console error；E2E：desktop 1440 + mobile 390 的示例/失败/取消/进度恢复；Lighthouse：移动 96/95/100，桌面 100/95/100 | **已补齐**；Playwright 尚未接 CI |
+| build/lint/typecheck/Playwright 冒烟；320/360/390/414 无横向滚动；Lighthouse 阈值 | `npm run build`（tsc + Vite）通过；lint 0 error/0 warning；e2e 56/56 | M1-E2：320/360/390/414/430 历史检查；M1-F5：Edge 1440/390 懒加载、示例/上传/原文/导出/帮助/恢复；Lighthouse：移动 99/95/100，桌面 96/95/100 | **本地达标**；Playwright 尚未接 CI |
 
 > M1-E2 元素扫描中，进度条内部填充元素出现负 `left`（进度为 0 时的 transform），其父容器 `overflow-hidden`，页面 `scrollWidth` 未变化；不计为页面横向滚动。
 
@@ -75,7 +76,7 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 
 ## 4. 其他仍需补齐的项
 
-- **Playwright CI**：`e2e/` 已入仓（当前本地 38/38 通过），但尚未接入 CI；`/tmp/qa` 仍保留额外的移动端/性能脚本。
+- **Playwright CI**：`e2e/` 已入仓（当前本地 56/56 通过），但尚未接入 CI；`/tmp/qa` 仍保留额外的移动端/性能脚本。
 - **真实论文引用定位**：M1-A 和 Track B 主要验证夹具/示例；真实论文的 100% 定位/高亮仍需抽样。
 - **真实 provider 帮助延迟**：M1-E5 只在本地 mock help 上计时；真实 LLM/线上网关下的 <200ms / <6s 未验证。
 - **预算持久化**：`functions/budget.ts` 是进程内计数，冷启动重置；上线前必须改为持久化。
@@ -99,11 +100,13 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | M1-E5 进度恢复/清理 e2e 输出 | [docs/m1e5/e2e-output.txt](m1e5/e2e-output.txt) |
 | M1-E5 帮助延迟 | [docs/m1e5/help-latency.json](m1e5/help-latency.json) |
 | M1-F4 URL 恢复/未知 hash/存储失败/零请求证据 | [docs/m1f4.md](m1f4.md)、[e2e/app.spec.ts](../e2e/app.spec.ts)、[tests/paper-route.test.mjs](../tests/paper-route.test.mjs) |
-| 当前测试命令与结果 | `npm test`（128/128）、`npm run lint`、`npm run test:e2e`（38/38）、`npm run build`、函数侧 `tsc`、dist 密钥审计；详见 [M1-F4](m1f4.md) |
+| M1-F5 首屏性能、实际 gzip、production 网络检查 | [M1-F5](m1f5.md)、[构建前](m1f5/bundle-before.json)、[构建后](m1f5/bundle-after.json)、[网络证据](m1f5/production-network.json) |
+| M1-F5 Lighthouse JSON + 汇总 | [移动端](m1f5/lighthouse-mobile.json)、[桌面端](m1f5/lighthouse-desktop.json)、[汇总](m1f5/lighthouse-summary.json) |
+| 当前测试命令与结果 | `npm test`（130/130）、零警告 lint、`npm run test:e2e`（56/56）、`npm run build`、函数侧 `tsc`、dist 密钥审计；详见 [M1-F5](m1f5.md) |
 
 ## 6. 结论
 
-- **已达到自动化/本地证据**：示例演示、引用校验（示例）、帮助缓存/回退、预算 402/503、解析取消/重试、学习报告、320–430 无横向滚动、lint 0 error、Playwright 38/38、Lighthouse 移动/桌面历史结果达标、进度按论文 hash 持久化/恢复/清理、帮助延迟本地单次实测达标、URL 自动恢复结果页（恢复 Function 新增请求 0，含未知 hash/存储异常/后退前进）。
+- **已达到自动化/本地证据**：示例演示、引用校验（示例）、帮助缓存/回退、预算 402/503、解析取消/重试、学习报告、320–430 无横向滚动、lint 0 error/0 warning、Playwright 56/56、Lighthouse 移动/桌面本轮结果达标、首屏入口小于 300 kB（实际 gzip 小于 120 kB）、进度按论文 hash 持久化/恢复/清理、帮助延迟本地单次实测达标、URL 自动恢复结果页（恢复 Function 新增请求 0，含未知 hash/存储异常/后退前进）。
 - **不能宣称已达到**：真实 MinerU、真实 LLM、部署后的 Origin/超时/流式、Playwright CI、真实移动设备、真实 provider 下的帮助延迟。
 - 比赛提交前，至少应完成第 3 节三项真实环境验证；否则应在验收说明中明确标注“本地/mock 验证”。
 

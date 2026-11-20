@@ -1,0 +1,127 @@
+{
+  "capturedAt": "2026-11-20T06:53:51.050Z",
+  "head": "0fe85bec1589417833c8fc3571f8f36c4251849b",
+  "node": "v24.14.0",
+  "entry": {
+    "file": "assets/index-B8ECl81A.js",
+    "bytes": 298965,
+    "gzipBytes": 96119
+  },
+  "assets": [
+    {
+      "file": "assets/dist-CZHdc-Ds.js",
+      "bytes": 26054,
+      "gzipBytes": 10048
+    },
+    {
+      "file": "assets/dist-D9W5FkXL.js",
+      "bytes": 4419,
+      "gzipBytes": 1640
+    },
+    {
+      "file": "assets/dist-Dpllt8QR.js",
+      "bytes": 2308,
+      "gzipBytes": 1024
+    },
+    {
+      "file": "assets/es2015-CIyNc84L.js",
+      "bytes": 28202,
+      "gzipBytes": 9851
+    },
+    {
+      "file": "assets/export-BYr1UDC9.js",
+      "bytes": 5435,
+      "gzipBytes": 2424
+    },
+    {
+      "file": "assets/flask-conical-DcFuq2iO.js",
+      "bytes": 559,
+      "gzipBytes": 340
+    },
+    {
+      "file": "assets/generation-Cy3QYe1i.js",
+      "bytes": 9164,
+      "gzipBytes": 4178
+    },
+    {
+      "file": "assets/HelpOverlay-Dfne_BuN.js",
+      "bytes": 8632,
+      "gzipBytes": 3325
+    },
+    {
+      "file": "assets/index-B8ECl81A.js",
+      "bytes": 298965,
+      "gzipBytes": 96119
+    },
+    {
+      "file": "assets/index-Du4R0vGi.css",
+      "bytes": 179000,
+      "gzipBytes": 25839
+    },
+    {
+      "file": "assets/loader-circle-FkY3MDP1.js",
+      "bytes": 194,
+      "gzipBytes": 183
+    },
+    {
+      "file": "assets/model-check-PeGLddMw.js",
+      "bytes": 3164,
+      "gzipBytes": 1485
+    },
+    {
+      "file": "assets/OriginalSheet-oBy63zJH.js",
+      "bytes": 3234,
+      "gzipBytes": 1667
+    },
+    {
+      "file": "assets/pdf-C0waCb1s.js",
+      "bytes": 445219,
+      "gzipBytes": 132564
+    },
+    {
+      "file": "assets/pdf.worker.min-CIqJB0yW.mjs",
+      "bytes": 1271915,
+      "gzipBytes": 380093
+    },
+    {
+      "file": "assets/pdf.worker.min-UqOn5EDC.js",
+      "bytes": 65,
+      "gzipBytes": 85
+    },
+    {
+      "file": "assets/ProgressView-DJSa3MCS.js",
+      "bytes": 6984,
+      "gzipBytes": 2987
+    },
+    {
+      "file": "assets/ResultView-CHOosjhK.js",
+      "bytes": 73006,
+      "gzipBytes": 21644
+    },
+    {
+      "file": "assets/self-test-Ch6jLw9L.js",
+      "bytes": 2316,
+      "gzipBytes": 1094
+    },
+    {
+      "file": "assets/SettingsDialog-BNbD8cdr.js",
+      "bytes": 33608,
+      "gzipBytes": 11394
+    },
+    {
+      "file": "assets/sheet-DK9OBzD0.js",
+      "bytes": 2324,
+      "gzipBytes": 851
+    },
+    {
+      "file": "assets/triangle-alert-BchNXLxG.js",
+      "bytes": 503,
+      "gzipBytes": 322
+    },
+    {
+      "file": "assets/x-D4UnLzN4.js",
+      "bytes": 183,
+      "gzipBytes": 168
+    }
+  ]
+}

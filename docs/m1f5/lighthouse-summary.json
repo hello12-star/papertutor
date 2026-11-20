@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2026-11-20T06:55:18.368Z",
+  "lighthouseVersion": "12.8.2",
+  "url": "http://127.0.0.1:6396/",
+  "preview": "Vite production preview API; health-only local middleware; all other Function requests blocked",
+  "chromePath": "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+  "targets": {
+    "mobile": [
+      90,
+      95,
+      100
+    ],
+    "desktop": [
+      95,
+      95,
+      100
+    ]
+  },
+  "mobile": {
+    "performance": 99,
+    "accessibility": 95,
+    "bestPractices": 100,
+    "lcp": 1670.28585,
+    "tbt": 11.5,
+    "cls": 0,
+    "fetchTime": "2026-11-20T06:54:11.271Z",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0",
+    "runtimeError": null,
+    "report": "docs/m1f5/lighthouse-mobile.json"
+  },
+  "desktop": {
+    "performance": 96,
+    "accessibility": 95,
+    "bestPractices": 100,
+    "lcp": 414.17885,
+    "tbt": 0,
+    "cls": 0.1288835583799894,
+    "fetchTime": "2026-11-20T06:54:28.816Z",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0",
+    "runtimeError": null,
+    "report": "docs/m1f5/lighthouse-desktop.json"
+  },
+  "pass": true
+}

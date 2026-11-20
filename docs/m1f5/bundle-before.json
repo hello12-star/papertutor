@@ -1,0 +1,37 @@
+{
+  "capturedAt": "2026-11-20T06:41:48.541Z",
+  "head": "0fe85bec1589417833c8fc3571f8f36c4251849b",
+  "node": "v24.14.0",
+  "entry": {
+    "file": "assets/index-CmgpYlqD.js",
+    "bytes": 502977,
+    "gzipBytes": 156613
+  },
+  "assets": [
+    {
+      "file": "assets/index-BWbIdWVI.css",
+      "bytes": 178755,
+      "gzipBytes": 25814
+    },
+    {
+      "file": "assets/index-CmgpYlqD.js",
+      "bytes": 502977,
+      "gzipBytes": 156613
+    },
+    {
+      "file": "assets/pdf-B8-srdyi.js",
+      "bytes": 445219,
+      "gzipBytes": 132564
+    },
+    {
+      "file": "assets/pdf.worker.min-CIqJB0yW.mjs",
+      "bytes": 1271915,
+      "gzipBytes": 380093
+    },
+    {
+      "file": "assets/pdf.worker.min-UqOn5EDC.js",
+      "bytes": 65,
+      "gzipBytes": 85
+    }
+  ]
+}

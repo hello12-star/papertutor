@@ -1,0 +1,11 @@
+{
+  "capturedAt": "2026-11-20T06:53:51.070Z",
+  "filesScanned": 29,
+  "counts": {
+    "ALIYUN_": 0,
+    "DASHSCOPE_": 0,
+    "secretKey": 0,
+    "secret_key": 0
+  },
+  "pass": true
+}

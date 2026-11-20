@@ -1,6 +1,8 @@
 import {
   createContext,
   Fragment,
+  lazy,
+  Suspense,
   useContext,
   useEffect,
   useRef,
@@ -39,15 +41,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { OriginalSheet } from "@/components/OriginalSheet";
 import { HelpButton } from "@/components/HelpSystem";
-import {
-  buildExportMarkdown,
-  buildOutline,
-  copyText,
-  downloadMarkdown,
-  downloadText,
-} from "@/lib/export";
 import { extractFormulaCards } from "@/lib/formulas";
 import {
   getProgress,
@@ -70,6 +64,7 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const OriginalSheet = lazy(() => import("@/components/OriginalSheet").then((module) => ({ default: module.OriginalSheet })));
 const LocateContext = createContext<(citation: Citation) => void>(() => {});
 
 type Props = {
@@ -122,6 +117,7 @@ export function ResultView({
   const [copied, setCopied] = useState(false);
   const [locateTarget, setLocateTarget] = useState<Citation | null>(null);
   const [originalOpen, setOriginalOpen] = useState(false);
+  const [originalRequested, setOriginalRequested] = useState(false);
   const [activeStep, setActiveStep] = useState<StepId>("quickview");
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const [selfTestRevealed, setSelfTestRevealed] = useState<Set<string>>(new Set<string>());
@@ -185,6 +181,7 @@ export function ResultView({
 
   const locateCitation = (citation: Citation) => {
     progressTouchedRef.current = true;
+    setOriginalRequested(true);
     setLocateTarget(citation);
     setActiveStep("original");
   };
@@ -198,27 +195,34 @@ export function ResultView({
     progressTouchedRef.current = true;
     setActiveStep(step);
     if (step === "original") {
+      setOriginalRequested(true);
       setOriginalOpen(true);
       return;
     }
     document.getElementById(step)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!analysis) return;
-    downloadMarkdown(doc, analysis, buildExportMarkdown(doc, analysis));
+    const exporter = await loadExport(flashExportNotice);
+    if (!exporter) return;
+    exporter.downloadMarkdown(doc, analysis, exporter.buildExportMarkdown(doc, analysis));
     flashExportNotice("Markdown 已开始下载");
   };
 
   const handleCopyMarkdown = async () => {
     if (!analysis) return;
-    const ok = await copyText(buildExportMarkdown(doc, analysis));
+    const exporter = await loadExport(flashExportNotice);
+    if (!exporter) return;
+    const ok = await exporter.copyText(exporter.buildExportMarkdown(doc, analysis));
     flashExportNotice(ok ? "Markdown 已复制" : "复制失败，请改用下载");
   };
 
   const handleCopyOutline = async () => {
     if (!analysis) return;
-    const ok = await copyText(buildOutline(doc, analysis));
+    const exporter = await loadExport(flashExportNotice);
+    if (!exporter) return;
+    const ok = await exporter.copyText(exporter.buildOutline(doc, analysis));
     flashExportNotice(ok ? "大纲已复制" : "复制失败，请改用下载");
   };
 
@@ -496,23 +500,36 @@ export function ResultView({
         </LocateContext.Provider>
       )}
 
-      <OriginalSheet
-        open={originalOpen || Boolean(locateTarget)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setOriginalOpen(false);
-            setLocateTarget(null);
-          }
-        }}
-        title={title}
-        markdown={doc.markdown}
-        target={locateTarget}
-        sourceUrl={doc.sourceUrl}
-        sourceLabel={doc.sourceLabel}
-        demo={doc.mode === "demo"}
-      />
+      {originalRequested && (
+        <Suspense fallback={<p role="status" className="fixed right-6 bottom-20 z-50 rounded-lg border bg-card p-4 text-sm">正在加载原文…</p>}>
+          <OriginalSheet
+            open={originalOpen || Boolean(locateTarget)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setOriginalOpen(false);
+                setLocateTarget(null);
+              }
+            }}
+            title={title}
+            markdown={doc.markdown}
+            target={locateTarget}
+            sourceUrl={doc.sourceUrl}
+            sourceLabel={doc.sourceLabel}
+            demo={doc.mode === "demo"}
+          />
+        </Suspense>
+      )}
     </main>
   );
+}
+
+async function loadExport(notify: (message: string) => void) {
+  try {
+    return await import("@/lib/export");
+  } catch {
+    notify("导出组件加载失败，请刷新后重试");
+    return null;
+  }
 }
 
 function CitationSummary({ stats }: { stats: CitationStats }) {
@@ -1432,13 +1449,17 @@ function LearningReportSection({
     window.setTimeout(() => setNotice(null), 2500);
   };
 
-  const download = () => {
-    downloadText(learningReportFileName(doc, analysis), report);
+  const download = async () => {
+    const exporter = await loadExport(flash);
+    if (!exporter) return;
+    exporter.downloadText(learningReportFileName(doc, analysis), report);
     flash("学习报告已开始下载");
   };
 
   const copy = async () => {
-    const ok = await copyText(report);
+    const exporter = await loadExport(flash);
+    if (!exporter) return;
+    const ok = await exporter.copyText(report);
     flash(ok ? "学习报告已复制" : "复制失败，请改用下载");
   };
 

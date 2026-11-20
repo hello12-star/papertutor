@@ -30,7 +30,7 @@ import {
   type ModelOption,
 } from "@/lib/models";
 import { testConnection, LlmError } from "@/lib/llm";
-import { generateQuickview } from "@/lib/analysis";
+import { generateQuickview } from "@/lib/generation";
 import {
   cachedModelCheck,
   recordModelCheck,

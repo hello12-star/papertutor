@@ -1,5 +1,5 @@
 import type { Analysis, CitationStats, ParsedDoc } from "./types";
-import { paperTitle } from "./export.ts";
+import { historyTitle } from "./history-core.ts";
 import { buildSelfTestItems, verdictLabel } from "./self-test.ts";
 
 export type LearningReportInput = {
@@ -15,7 +15,7 @@ export function buildLearningReport({
   stats,
   selfTest,
 }: LearningReportInput): string {
-  const title = paperTitle(doc, analysis);
+  const title = historyTitle(doc, analysis);
   const { quickview, skeleton } = analysis;
   const revealed = new Set(selfTest.revealedIds);
   const items = buildSelfTestItems(analysis);
@@ -115,7 +115,7 @@ export function buildLearningReport({
 }
 
 export function learningReportFileName(doc: ParsedDoc, analysis: Analysis): string {
-  const base = paperTitle(doc, analysis)
+  const base = historyTitle(doc, analysis)
     .replace(/[\\/:*?"<>|]+/g, " ")
     .replace(/\s+/g, "-")
     .slice(0, 60)

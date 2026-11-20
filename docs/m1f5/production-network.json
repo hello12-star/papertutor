@@ -1,0 +1,133 @@
+{
+  "capturedAt": "2026-11-20T06:56:12.167Z",
+  "baseUrl": "http://127.0.0.1:6396/",
+  "browser": "system Edge",
+  "paidCalls": 0,
+  "results": [
+    {
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "landingScripts": [
+        "/assets/index-B8ECl81A.js"
+      ],
+      "demoScripts": [
+        "/assets/index-B8ECl81A.js",
+        "/assets/ResultView-CHOosjhK.js",
+        "/assets/self-test-Ch6jLw9L.js",
+        "/assets/dist-CZHdc-Ds.js",
+        "/assets/es2015-CIyNc84L.js",
+        "/assets/dist-Dpllt8QR.js",
+        "/assets/triangle-alert-BchNXLxG.js",
+        "/assets/flask-conical-DcFuq2iO.js"
+      ],
+      "exportedScripts": [
+        "/assets/index-B8ECl81A.js",
+        "/assets/ResultView-CHOosjhK.js",
+        "/assets/self-test-Ch6jLw9L.js",
+        "/assets/dist-CZHdc-Ds.js",
+        "/assets/es2015-CIyNc84L.js",
+        "/assets/dist-Dpllt8QR.js",
+        "/assets/triangle-alert-BchNXLxG.js",
+        "/assets/flask-conical-DcFuq2iO.js",
+        "/assets/OriginalSheet-oBy63zJH.js",
+        "/assets/sheet-DK9OBzD0.js",
+        "/assets/dist-D9W5FkXL.js",
+        "/assets/x-D4UnLzN4.js",
+        "/assets/export-BYr1UDC9.js"
+      ],
+      "uploadScripts": [
+        "/assets/index-B8ECl81A.js",
+        "/assets/ResultView-CHOosjhK.js",
+        "/assets/self-test-Ch6jLw9L.js",
+        "/assets/dist-CZHdc-Ds.js",
+        "/assets/es2015-CIyNc84L.js",
+        "/assets/dist-Dpllt8QR.js",
+        "/assets/triangle-alert-BchNXLxG.js",
+        "/assets/flask-conical-DcFuq2iO.js",
+        "/assets/OriginalSheet-oBy63zJH.js",
+        "/assets/sheet-DK9OBzD0.js",
+        "/assets/dist-D9W5FkXL.js",
+        "/assets/x-D4UnLzN4.js",
+        "/assets/export-BYr1UDC9.js",
+        "/assets/ProgressView-DJSa3MCS.js",
+        "/assets/loader-circle-FkY3MDP1.js",
+        "/assets/pdf-C0waCb1s.js",
+        "/assets/pdf.worker.min-UqOn5EDC.js",
+        "/assets/pdf.worker.min-CIqJB0yW.mjs"
+      ],
+      "mockedActions": [
+        "api.parse",
+        "api.analyze"
+      ],
+      "pageErrors": [],
+      "overflow": false,
+      "pass": true
+    },
+    {
+      "device": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "landingScripts": [
+        "/assets/index-B8ECl81A.js"
+      ],
+      "demoScripts": [
+        "/assets/index-B8ECl81A.js",
+        "/assets/ResultView-CHOosjhK.js",
+        "/assets/self-test-Ch6jLw9L.js",
+        "/assets/dist-CZHdc-Ds.js",
+        "/assets/es2015-CIyNc84L.js",
+        "/assets/dist-Dpllt8QR.js",
+        "/assets/triangle-alert-BchNXLxG.js",
+        "/assets/flask-conical-DcFuq2iO.js"
+      ],
+      "exportedScripts": [
+        "/assets/index-B8ECl81A.js",
+        "/assets/ResultView-CHOosjhK.js",
+        "/assets/self-test-Ch6jLw9L.js",
+        "/assets/dist-CZHdc-Ds.js",
+        "/assets/es2015-CIyNc84L.js",
+        "/assets/dist-Dpllt8QR.js",
+        "/assets/triangle-alert-BchNXLxG.js",
+        "/assets/flask-conical-DcFuq2iO.js",
+        "/assets/OriginalSheet-oBy63zJH.js",
+        "/assets/sheet-DK9OBzD0.js",
+        "/assets/dist-D9W5FkXL.js",
+        "/assets/x-D4UnLzN4.js",
+        "/assets/export-BYr1UDC9.js"
+      ],
+      "uploadScripts": [
+        "/assets/index-B8ECl81A.js",
+        "/assets/ResultView-CHOosjhK.js",
+        "/assets/self-test-Ch6jLw9L.js",
+        "/assets/dist-CZHdc-Ds.js",
+        "/assets/es2015-CIyNc84L.js",
+        "/assets/dist-Dpllt8QR.js",
+        "/assets/triangle-alert-BchNXLxG.js",
+        "/assets/flask-conical-DcFuq2iO.js",
+        "/assets/OriginalSheet-oBy63zJH.js",
+        "/assets/sheet-DK9OBzD0.js",
+        "/assets/dist-D9W5FkXL.js",
+        "/assets/x-D4UnLzN4.js",
+        "/assets/export-BYr1UDC9.js",
+        "/assets/ProgressView-DJSa3MCS.js",
+        "/assets/loader-circle-FkY3MDP1.js",
+        "/assets/pdf-C0waCb1s.js",
+        "/assets/pdf.worker.min-UqOn5EDC.js",
+        "/assets/pdf.worker.min-CIqJB0yW.mjs"
+      ],
+      "mockedActions": [
+        "api.parse",
+        "api.analyze"
+      ],
+      "pageErrors": [],
+      "overflow": false,
+      "pass": true
+    }
+  ],
+  "pass": true
+}

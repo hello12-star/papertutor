@@ -61,3 +61,35 @@ test("formula cards are extracted from display math", () => {
   assert.match(cards[1].formula, /L =/);
   assert.ok(cards[0].meaning.length > 0);
 });
+
+test("lazy generation imports offline and preserves normalized study materials", async (t) => {
+  const replies = [analysis.quickview, analysis.skeleton];
+  const fetchMock = t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.equal(url, "http://127.0.0.1:0/mock/chat/completions");
+    const body = JSON.parse(options.body);
+    assert.equal(body.model, "test-model");
+    assert.equal(body.stream, false);
+    assert.ok(body.messages.some((message) => message.content.includes(doc.markdown)));
+    return Response.json({ choices: [{ message: { content: JSON.stringify(replies.shift()) }, finish_reason: "stop" }] });
+  });
+  const { generateQuickview, generateSkeleton } = await import("../lib/generation.ts");
+  assert.equal(fetchMock.mock.callCount(), 0);
+  const settings = { baseUrl: "http://127.0.0.1:0/mock", apiKey: "test-only", model: "test-model", mineruToken: "" };
+  const quickview = await generateQuickview(doc.markdown, settings);
+  const skeleton = await generateSkeleton(doc.markdown, settings);
+  assert.equal(quickview.meta.title, analysis.quickview.meta.title);
+  assert.equal(quickview.coreQuestion, analysis.quickview.coreQuestion);
+  assert.deepEqual(skeleton.modules.map((module) => module.name), analysis.skeleton.modules.map((module) => module.name));
+  assert.deepEqual(skeleton.experiments.map((experiment) => experiment.verdict), analysis.skeleton.experiments.map((experiment) => experiment.verdict));
+  assert.equal(fetchMock.mock.callCount(), 2);
+});
+
+test("lazy generation preserves provider authentication errors without retry", async (t) => {
+  const fetchMock = t.mock.method(globalThis, "fetch", async () => new Response("invalid test key", { status: 401 }));
+  const { generateQuickview } = await import("../lib/generation.ts");
+  await assert.rejects(
+    generateQuickview(doc.markdown, { baseUrl: "http://127.0.0.1:0/mock", apiKey: "test-only", model: "test-model", mineruToken: "" }),
+    (error) => error.code === "invalid_key",
+  );
+  assert.equal(fetchMock.mock.callCount(), 1);
+});

@@ -1,12 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HelpScope } from "@/components/HelpSystem";
 import { Landing } from "@/components/Landing";
-import { ProgressView } from "@/components/ProgressView";
-import { ResultView } from "@/components/ResultView";
-import { SettingsDialog } from "@/components/SettingsDialog";
-import { generateQuickview, generateSkeleton, assembleAnalysis, verifyCitations } from "@/lib/analysis";
+import { assembleAnalysis, verifyCitations } from "@/lib/analysis";
 import { cacheAnalysis, cacheDoc, clearCache, getCachedAnalysis, getCachedDoc } from "@/lib/cache";
 import { clearHelpCache } from "@/lib/help-cache";
 import {
@@ -21,7 +18,6 @@ import { createParseControl, type ParseControl } from "@/lib/parse-control";
 import { formatPaperHash, parsePaperHash, restorePaperResult } from "@/lib/paper-route";
 import { countPdfPages, formatBytes, sha256Hex } from "@/lib/files";
 import { LlmError } from "@/lib/llm";
-import { verifyModel } from "@/lib/model-check";
 import { parseWithMineru, MineruError, type MineruMode } from "@/lib/mineru";
 import {
   analyzeWithServer,
@@ -31,6 +27,10 @@ import {
 } from "@/lib/server-api";
 import { loadSettings, saveSettings, type Settings } from "@/lib/settings";
 import type { Analysis, AppError, CitationStats, ParsedDoc, Phase } from "@/lib/types";
+
+const ProgressView = lazy(() => import("@/components/ProgressView").then((module) => ({ default: module.ProgressView })));
+const ResultView = lazy(() => import("@/components/ResultView").then((module) => ({ default: module.ResultView })));
+const SettingsDialog = lazy(() => import("@/components/SettingsDialog").then((module) => ({ default: module.SettingsDialog })));
 
 type View = "landing" | "working" | "result" | "restoring";
 
@@ -79,6 +79,11 @@ function phaseStateLabel(state: string): string {
 export default function App() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsRequested, setSettingsRequested] = useState(false);
+  const openSettings = () => {
+    setSettingsRequested(true);
+    setSettingsOpen(true);
+  };
   const [initialRoute] = useState(() => parsePaperHash(window.location.hash));
   const [view, setView] = useState<View>(initialRoute.kind === "home" ? "landing" : "restoring");
   const [localNavigation, setLocalNavigation] = useState(initialRoute.kind !== "home");
@@ -355,6 +360,8 @@ export default function App() {
     });
     let modelCheck;
     try {
+      const { verifyModel } = await import("@/lib/model-check");
+      if (stale()) return;
       modelCheck = await verifyModel(settings, settings.model);
     } catch (error) {
       modelCheck = {
@@ -385,8 +392,11 @@ export default function App() {
       detail: `模型可用（${modelCheck.latencyMs ?? "?"}ms），正在通读全文，提炼速览信息…`,
     });
     let quickview;
+    let generation: typeof import("@/lib/generation");
     try {
-      quickview = await generateQuickview(target.markdown, settings);
+      generation = await import("@/lib/generation");
+      if (stale()) return;
+      quickview = await generation.generateQuickview(target.markdown, settings);
     } catch (error) {
       if (!stale()) failWith(mapLlmError(error), "result");
       return;
@@ -401,7 +411,7 @@ export default function App() {
 
     let skeleton;
     try {
-      skeleton = await generateSkeleton(target.markdown, settings);
+      skeleton = await generation.generateSkeleton(target.markdown, settings);
     } catch (error) {
       if (!stale()) failWith(mapLlmError(error), "result");
       return;
@@ -711,7 +721,7 @@ export default function App() {
   const regenerate = () => {
     if (!doc) return;
     if (!settings.apiKey.trim()) {
-      setSettingsOpen(true);
+      openSettings();
       return;
     }
     runRef.current += 1;
@@ -759,7 +769,7 @@ export default function App() {
             <span className="hidden text-[11px] text-muted-foreground sm:inline">
               {serverMode ? "服务端模式" : hasKey ? settings.model : "未配置模型"}
             </span>
-            <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(true)}>
+            <Button variant="ghost" size="sm" onClick={() => openSettings()}>
               <Settings2 />
               设置
             </Button>
@@ -789,7 +799,7 @@ export default function App() {
           <HelpScope screen="landing" paperHash="landing" autoBootstrap={serverModeReady && !serverMode && !localNavigation}>
             <Landing
               onFile={(file) => void start(file)}
-              onOpenSettings={() => setSettingsOpen(true)}
+              onOpenSettings={openSettings}
               onOpenHistory={openHistory}
               demoPapers={demoPapers}
               demoLoadingId={demoLoadingId}
@@ -803,36 +813,40 @@ export default function App() {
         )}
 
         {view === "working" && (
-          <ProgressView
-            fileName={fileMeta.name}
-            fileSize={fileMeta.size}
-            phases={phases}
-            error={error}
-            onOpenSettings={() => setSettingsOpen(true)}
-            onBack={resetToLanding}
-            onCancel={cancelParse}
-            onRetry={retryParse}
-            retrying={parsing}
-            canRetry={Boolean(lastFileRef.current)}
-          />
+          <Suspense fallback={<main className="mx-auto max-w-6xl px-6 py-12"><p role="status">正在加载解析进度…</p></main>}>
+            <ProgressView
+              fileName={fileMeta.name}
+              fileSize={fileMeta.size}
+              phases={phases}
+              error={error}
+              onOpenSettings={openSettings}
+              onBack={resetToLanding}
+              onCancel={cancelParse}
+              onRetry={retryParse}
+              retrying={parsing}
+              canRetry={Boolean(lastFileRef.current)}
+            />
+          </Suspense>
         )}
 
         {view === "result" && doc && (
           <HelpScope screen="result" paperHash={doc.hash} autoBootstrap={serverModeReady && !serverMode && !localNavigation}>
-            <ResultView
-              doc={doc}
-              analysis={analysis}
-              stats={stats}
-              error={error}
-              generating={generating}
-              cacheHit={cacheHit}
-              hasKey={hasKey}
-              diagnostics={{ model: settings.model, baseUrl: settings.baseUrl }}
-              demoLoadMs={demoLoadMs}
-              onRegenerate={regenerate}
-              onOpenSettings={() => setSettingsOpen(true)}
-              onBack={resetToLanding}
-            />
+            <Suspense fallback={<main className="mx-auto max-w-6xl px-6 py-12"><p role="status">正在加载学习材料…</p></main>}>
+              <ResultView
+                doc={doc}
+                analysis={analysis}
+                stats={stats}
+                error={error}
+                generating={generating}
+                cacheHit={cacheHit}
+                hasKey={hasKey}
+                diagnostics={{ model: settings.model, baseUrl: settings.baseUrl }}
+                demoLoadMs={demoLoadMs}
+                onRegenerate={regenerate}
+                onOpenSettings={openSettings}
+                onBack={resetToLanding}
+              />
+            </Suspense>
           </HelpScope>
         )}
       </div>
@@ -844,16 +858,20 @@ export default function App() {
         </div>
       </footer>
 
-      <SettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        settings={settings}
-        onSave={onSaveSettings}
-        onClearCache={() => {
-          void clearCache();
-          void clearHelpCache();
-        }}
-      />
+      {settingsRequested && (
+        <Suspense fallback={<p role="status" className="fixed right-6 bottom-6 z-50 rounded-lg border bg-card p-4 text-sm">正在加载设置…</p>}>
+          <SettingsDialog
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+            settings={settings}
+            onSave={onSaveSettings}
+            onClearCache={() => {
+              void clearCache();
+              void clearHelpCache();
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 

@@ -551,3 +551,285 @@ test("late IndexedDB restoration cannot override a newer hash or home navigation
   await expect(page.getByText("没有 Key，也能先读 3 篇经典论文")).toBeVisible();
   await expect(page.getByText("30 秒速览：这篇论文值不值得深读")).toHaveCount(0);
 });
+
+test.describe("M1-F5 lazy loading", () => {
+  async function gotoObservedPage(page: Page, openDemo = false) {
+    const modules = {
+      ResultView: /\/components\/ResultView\.tsx$/,
+      SettingsDialog: /\/components\/SettingsDialog\.tsx$/,
+      OriginalSheet: /\/components\/OriginalSheet\.tsx$/,
+      HelpOverlay: /\/components\/HelpOverlay\.tsx$/,
+      export: /\/lib\/export\.ts$/,
+      pdfjs: /(?:\/pdfjs[-_]dist(?:\.js)?$|\/pdf(?:\.min)?\.mjs$)/i,
+      "pdf-worker": /\/pdf\.worker(?:\.min)?\.mjs$/i,
+      recharts: /(?:^|\/)recharts(?:[./_-]|$)/i,
+    };
+    const requested: string[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      for (const [name, pattern] of Object.entries(modules)) {
+        if (!pattern.test(url.pathname)) continue;
+        // Distinguish Vite's worker URL wrapper from the actual worker fetch.
+        requested.push(name === "pdf-worker" && url.searchParams.has("url") ? "pdf-worker-url" : name);
+      }
+    });
+    // The existing catch-all Function mock blocks anything not explicitly mocked.
+    await gotoLanding(page, true);
+    await page.waitForLoadState("networkidle");
+    expect(requested).toEqual([]);
+    if (openDemo) {
+      const card = page.locator("article").filter({ hasText: "Attention Is All You Need" }).first();
+      await card.getByRole("button", { name: /打开示例/ }).click();
+      await expect(page.getByText("30 秒速览：这篇论文值不值得深读")).toBeVisible();
+      await page.waitForLoadState("networkidle");
+    }
+    return requested;
+  }
+
+  test("landing stays light and demo loads only the result study tools", async ({ page }) => {
+    const functions = trackFunctionRequests(page);
+    const modules = await gotoObservedPage(page, true);
+    await expect(page.getByText("方法流程图：从问题到验证")).toBeVisible();
+    for (const experiment of DEMO_PAPER.analysis.skeleton.experiments) {
+      await expect(page.locator("#experiments").getByText(experiment.name, { exact: true })).toBeVisible();
+      await expect(page.locator("#experiments").getByText(experiment.finding, { exact: true })).toBeVisible();
+    }
+    expect(modules).toEqual(["ResultView"]);
+    expect(functions.filter((url) => !new URL(url).pathname.endsWith("/api/health"))).toEqual([]);
+  });
+
+  test("citation loads the Markdown original sheet and supports close and reopen", async ({ page }) => {
+    const modules = await gotoObservedPage(page, true);
+    expect(modules).toEqual(["ResultView"]);
+    const citation = page.locator("#problem").getByTitle("在解析出的原文中定位这句引文", { exact: true }).first();
+    const quote = DEMO_PAPER.analysis.skeleton.problem.citations[0].quote;
+    const sheet = page.getByRole("dialog", { name: "原文定位", exact: true });
+    await citation.click();
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator("mark")).toBeVisible();
+    await expect(sheet.locator("mark")).toHaveText(quote);
+    await expect(sheet.getByText(/已定位 · 字符偏移/)).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    expect(modules).toEqual(["ResultView", "OriginalSheet"]);
+
+    await sheet.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(sheet).toBeHidden();
+    const nav = page.locator("nav:visible").filter({ has: page.getByRole("button", { name: /读原文/ }) });
+    await nav.getByRole("button", { name: /读原文/ }).click();
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator("pre")).toHaveText(DEMO_PAPER.doc.markdown);
+    await sheet.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(sheet).toBeHidden();
+    await citation.click();
+    await expect(sheet.locator("mark")).toHaveText(quote);
+    await sheet.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(sheet).toBeHidden();
+    await page.waitForLoadState("networkidle");
+    expect(modules).toEqual(["ResultView", "OriginalSheet"]);
+  });
+
+  for (const kind of ["markdown", "report"] as const) {
+    test(`${kind} download imports export only on action and saves the expected text`, async ({ page }) => {
+      const functions = trackFunctionRequests(page);
+      const modules = await gotoObservedPage(page, true);
+      const before = functions.length;
+      let reportPreview: string | null = null;
+      let selfTestTotal = 0;
+      if (kind === "markdown") {
+        await page.getByRole("button", { name: "导出", exact: true }).click();
+        await expect(page.getByRole("menuitem", { name: "下载 Markdown", exact: true })).toBeVisible();
+      } else {
+        const answers = page.locator("#selfTest").getByRole("button", { name: "展开参考答案", exact: true });
+        selfTestTotal = await answers.count();
+        await answers.first().click();
+        await expect(page.locator("#report").getByText(`1/${selfTestTotal}`, { exact: true })).toBeVisible();
+        await page.locator("#report").getByText("预览报告内容", { exact: true }).click();
+        await expect(page.locator("#report pre")).toBeVisible();
+        reportPreview = await page.locator("#report pre").textContent();
+      }
+      await page.waitForLoadState("networkidle");
+      expect(modules).toEqual(["ResultView"]);
+
+      const downloading = page.waitForEvent("download");
+      if (kind === "markdown") {
+        await page.getByRole("menuitem", { name: "下载 Markdown", exact: true }).click();
+      } else {
+        await page.getByRole("button", { name: "下载学习报告", exact: true }).click();
+      }
+      const download = await downloading;
+      expect(download.suggestedFilename()).toBe(kind === "markdown"
+        ? "Attention-Is-All-You-Need.md"
+        : "学习报告-Attention-Is-All-You-Need.md");
+      const savedPath = await download.path();
+      expect(savedPath).not.toBeNull();
+      const text = fs.readFileSync(savedPath!, "utf8");
+      expect(text).toContain(DEMO_PAPER.analysis.quickview.coreQuestion);
+      if (kind === "markdown") {
+        expect(text).toMatch(/^# Attention Is All You Need\n/);
+        expect(text).toContain(`- Paper Hash：${DEMO_HASH}`);
+        expect(text).toContain(DEMO_PAPER.analysis.skeleton.problem.citations[0].quote);
+        expect(text).toContain("## 自测题");
+      } else {
+        expect(text).toBe(reportPreview);
+        expect(text).toMatch(/^# 学习报告：Attention Is All You Need\n/);
+        expect(text).toContain(`- 本次会话已展开参考答案：1/${selfTestTotal}`);
+        expect(text).toContain("## 引用校验");
+      }
+      await page.waitForLoadState("networkidle");
+      expect(modules).toEqual(["ResultView", "export"]);
+      expect(functions.slice(before)).toEqual([]);
+    });
+  }
+
+  for (const action of ["复制 Markdown", "复制大纲"] as const) {
+    test(`${action} lazily imports export using an in-page clipboard`, async ({ page }) => {
+      // Avoid OS clipboard permissions and side effects on both viewport projects.
+      await page.addInitScript(() => {
+        let copied = "";
+        Object.defineProperty(navigator, "clipboard", {
+          configurable: true,
+          value: {
+            writeText: async (text: string) => { copied = text; },
+            readText: async () => copied,
+          },
+        });
+      });
+      const functions = trackFunctionRequests(page);
+      const modules = await gotoObservedPage(page, true);
+      const before = functions.length;
+      await page.getByRole("button", { name: "导出", exact: true }).click();
+      await expect(page.getByRole("menuitem", { name: action, exact: true })).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      expect(modules).toEqual(["ResultView"]);
+      await page.getByRole("menuitem", { name: action, exact: true }).click();
+      await expect(page.getByText(action === "复制 Markdown" ? "Markdown 已复制" : "大纲已复制", { exact: true })).toBeVisible();
+      const text = await page.evaluate(() => navigator.clipboard.readText());
+      expect(text).toMatch(/^# Attention Is All You Need\n/);
+      if (action === "复制 Markdown") {
+        expect(text).toContain("## 论证骨架");
+        expect(text).toContain(DEMO_PAPER.analysis.quickview.coreQuestion);
+      } else {
+        expect(text).toContain("- 速览卡：核心问题 / 核心贡献 / 方法概括");
+        expect(text).toContain(DEMO_PAPER.analysis.skeleton.modules[0].name);
+        expect(text).toContain(DEMO_PAPER.analysis.skeleton.experiments[0].name);
+      }
+      await page.waitForLoadState("networkidle");
+      expect(modules).toEqual(["ResultView", "export"]);
+      expect(functions.slice(before)).toEqual([]);
+    });
+  }
+
+  test("a pending result module leaves header navigation usable and cannot restore a cancelled result", async ({ page }) => {
+    const resultPath = /\/components\/ResultView\.tsx(?:\?|$)/;
+    let releaseResult!: () => void;
+    const resultReady = new Promise<void>((resolve) => { releaseResult = resolve; });
+    await page.route(resultPath, async (route) => {
+      await resultReady;
+      await route.continue();
+    });
+    try {
+      await gotoObservedPage(page);
+      const requested = page.waitForRequest(resultPath);
+      const card = page.locator("article").filter({ hasText: "Attention Is All You Need" }).first();
+      await card.getByRole("button", { name: /打开示例/ }).click();
+      await requested;
+      await expect(page.getByRole("status")).toHaveText("正在加载学习材料…");
+      const header = page.locator("header");
+      await header.getByRole("button", { name: "设置", exact: true }).click();
+      const settings = page.getByRole("dialog", { name: "模型与解析设置", exact: true });
+      await expect(settings).toBeVisible();
+      await settings.getByRole("button", { name: "取消", exact: true }).click();
+      await expect(settings).toBeHidden();
+      await expect(page.getByRole("status")).toHaveText("正在加载学习材料…");
+      await header.getByRole("button", { name: /PaperTutor/ }).click();
+      await expect(page.getByText("没有 Key，也能先读 3 篇经典论文")).toBeVisible();
+      await expect(page).toHaveURL(/\/$/);
+      await expect(page.getByRole("status")).toHaveCount(0);
+
+      const response = page.waitForResponse(resultPath);
+      releaseResult();
+      await response;
+      await page.waitForLoadState("networkidle");
+      await expect(page).toHaveURL(/\/$/);
+      await expect(page.getByText("没有 Key，也能先读 3 篇经典论文")).toBeVisible();
+      await expect(page.getByText("30 秒速览：这篇论文值不值得深读")).toHaveCount(0);
+      await expect(page.getByRole("status")).toHaveCount(0);
+    } finally {
+      releaseResult();
+    }
+  });
+
+  test("upload alone loads pdfjs and its worker before mocked server analysis reaches the result", async ({ page }) => {
+    const functions = trackFunctionRequests(page);
+    await page.route(/\/functions\/v1\/app\?action=api\.parse(?:&|$)/, (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true, jobId: "lazy-parse", docId: "m1-f5-upload", status: "succeeded",
+        pages: 10, markdown: DEMO_PAPER.doc.markdown, cached: false,
+      }),
+    }));
+    await page.route(/\/functions\/v1\/app\?action=api\.analyze(?:&|$)/, (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true, jobId: "lazy-analysis", status: "succeeded",
+        analysis: DEMO_PAPER.analysis, model: "qwen-plus", cached: false,
+      }),
+    }));
+    const modules = await gotoObservedPage(page);
+    const before = functions.length;
+    await page.locator('input[type="file"]').first().setInputFiles(FIXTURE);
+    await expect(page.getByText("30 秒速览：这篇论文值不值得深读")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("服务端 DocMind 解析", { exact: true })).toBeVisible();
+    await expect(page.getByText("10 页", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/#\/paper\/m1-f5-upload$/);
+    await page.waitForLoadState("networkidle");
+    expect(modules).toContain("pdfjs");
+    expect(modules).toContain("pdf-worker");
+    expect(modules).toContain("ResultView");
+    expect(modules.indexOf("pdfjs")).toBeLessThan(modules.indexOf("ResultView"));
+    expect(modules.indexOf("pdf-worker")).toBeLessThan(modules.indexOf("ResultView"));
+    expect(modules.filter((name) => !["pdfjs", "pdf-worker", "pdf-worker-url", "ResultView"].includes(name))).toEqual([]);
+    expect(functions.slice(before).map((url) => new URL(url).searchParams.get("action"))).toEqual(["api.parse", "api.analyze"]);
+  });
+
+  test("settings and help load on first opening and reopen without extra module requests", async ({ page }) => {
+    const calls = await mockHelp(page);
+    const modules = await gotoObservedPage(page);
+    const openSettings = page.locator("header").getByRole("button", { name: "设置", exact: true });
+    const settings = page.getByRole("dialog", { name: "模型与解析设置", exact: true });
+    await openSettings.click();
+    await expect(settings).toBeVisible();
+    await expect(settings.getByLabel("API Key", { exact: true })).toHaveValue("");
+    await expect(settings.getByRole("button", { name: "测试 Key 与模型", exact: true })).toBeDisabled();
+    // Toggle only local visibility state; never fill keys, save settings, or verify a provider.
+    await settings.getByRole("button", { name: "显示 Key", exact: true }).click();
+    await settings.getByRole("button", { name: "取消", exact: true }).click();
+    await expect(settings).toBeHidden();
+    await openSettings.click();
+    await expect(settings.getByLabel("API Key", { exact: true })).toHaveAttribute("type", "text");
+    await settings.getByRole("button", { name: "取消", exact: true }).click();
+    await expect(settings).toBeHidden();
+    await page.waitForLoadState("networkidle");
+    expect(modules).toEqual(["SettingsDialog"]);
+    expect(calls).toEqual({ predict: 0, answer: 0 });
+
+    const help = page.getByRole("button", { name: "需要的话，可以看这里：PDF 上传", exact: true });
+    const panel = page.locator('[data-help-id="landing.upload"]');
+    await help.click();
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute("data-source", "api");
+    await expect(panel.getByRole("heading", { name: "PDF 上传", exact: true })).toBeVisible();
+    await panel.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(panel).toBeHidden();
+    await help.click();
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute("data-source", "cache");
+    await panel.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(panel).toBeHidden();
+    await page.waitForLoadState("networkidle");
+    expect(modules).toEqual(["SettingsDialog", "HelpOverlay"]);
+    expect(calls).toEqual({ predict: 0, answer: 1 });
+  });
+});

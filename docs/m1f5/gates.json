@@ -1,0 +1,61 @@
+{
+  "capturedAt": "2026-11-20T06:58:33.058Z",
+  "head": "0fe85bec1589417833c8fc3571f8f36c4251849b",
+  "node": "v24.14.0",
+  "unit": {
+    "command": "npm test",
+    "exitCode": 0,
+    "passed": 130,
+    "existing": 128,
+    "added": 2
+  },
+  "e2e": {
+    "command": "npm run test:e2e",
+    "exitCode": 0,
+    "passed": 56,
+    "existing": 38,
+    "added": 18
+  },
+  "lint": {
+    "command": "npm run lint -- --max-warnings 0",
+    "exitCode": 0,
+    "errors": 0,
+    "warnings": 0
+  },
+  "build": {
+    "command": "npm run build",
+    "exitCode": 0,
+    "before": {
+      "file": "assets/index-CmgpYlqD.js",
+      "bytes": 502977,
+      "gzipBytes": 156613
+    },
+    "after": {
+      "file": "assets/index-B8ECl81A.js",
+      "bytes": 298965,
+      "gzipBytes": 96119
+    },
+    "targetPassed": true
+  },
+  "functionsTsc": {
+    "command": "npx tsc --noEmit --allowImportingTsExtensions --strict --lib ES2022,DOM --module ESNext --moduleResolution Bundler --target ES2022 --skipLibCheck functions/handler.ts",
+    "exitCode": 0
+  },
+  "distAudit": {
+    "capturedAt": "2026-11-20T06:53:51.070Z",
+    "filesScanned": 29,
+    "counts": {
+      "ALIYUN_": 0,
+      "DASHSCOPE_": 0,
+      "secretKey": 0,
+      "secret_key": 0
+    },
+    "pass": true
+  },
+  "lighthousePassed": true,
+  "productionNetworkPassed": true,
+  "paidCalls": 0,
+  "deployed": false,
+  "committed": false,
+  "pushed": false
+}
