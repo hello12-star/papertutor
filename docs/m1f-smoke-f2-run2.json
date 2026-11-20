@@ -1,0 +1,47 @@
+{
+  "capturedAt": "2026-11-19T08:12:34.218Z",
+  "parseStartEpoch": 1795075945880,
+  "url": "https://paper-tutor-b4bndympaz4.qoder.zone/",
+  "actionId": "aac64c0a-ab6e-4a6f-b57c-ed29adb163f2",
+  "upload": {
+    "file": "one-page.pdf",
+    "bytes": 1945,
+    "pages": 1
+  },
+  "serverMode": true,
+  "result": "failed",
+  "endpointFixVerified": true,
+  "chainReached": [
+    "authorizeFileUpload (ok)",
+    "uploadToOss (ok)",
+    "submitJob (ok, JobId returned)",
+    "waitForStatus (success)",
+    "GetDocParserResult (failed: MissingLayoutNum)"
+  ],
+  "parse": {
+    "route": "/functions/v1/app?action=api.parse",
+    "httpStatus": 502,
+    "elapsedMs": 8338,
+    "ok": false,
+    "code": "DOCMIND_STATUS_FAILED",
+    "message": "DocMind GetDocParserResult 失败。",
+    "detail": "MissingLayoutNum · LayoutNum is mandatory. · 01A1F2DD-53E8-5086-9F0B-6F628E2E389E",
+    "requestId": "01A1F2DD-53E8-5086-9F0B-6F628E2E389E",
+    "docId": null,
+    "markdown": null
+  },
+  "analyze": null,
+  "analyzeCalled": false,
+  "citations": null,
+  "cost": {
+    "docmindPagesParsed": 1,
+    "docmindCny": "0 within monthly free tier, otherwise <= 0.02",
+    "llmCny": 0,
+    "note": "DocMind submit + status succeeded (1 page parsed); GetDocParserResult rejected for missing LayoutNum parameter; qwen-plus never called. Actual bill subject to Aliyun."
+  },
+  "retried": false,
+  "singleCallConfirmed": true,
+  "totalFunctionRequests": 1,
+  "uiFailureText": "DocMind 解析失败 / DocMind GetDocParserResult 失败。",
+  "screenshot": "unavailable (in-app browser viewport hidden); structured request evidence captured instead"
+}

@@ -5,10 +5,11 @@ import type {
   PredictItem,
 } from "../functions/help/registry.ts";
 
-const BASE = "/functions/v1/app/api";
+const FUNCTION = "/functions/v1/app";
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${BASE}${path}`, {
+  const action = `api${path.replace(/\//g, ".")}`;
+  const response = await fetch(`${FUNCTION}?action=${action}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

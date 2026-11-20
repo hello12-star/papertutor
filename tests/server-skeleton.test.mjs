@@ -334,6 +334,56 @@ test("daily budget exhaustion returns 402 before LLM fetch", async () => {
   }
 });
 
+test("health reports server mode without requiring it", async () => {
+  resetEnv({ SERVER_MODE: "false" });
+  const off = await call("/api/health");
+  assert.equal(off.response.status, 200);
+  assert.equal(off.body.ok, true);
+  assert.equal(off.body.serverMode, false);
+
+  resetEnv({ SERVER_MODE: "true" });
+  const on = await call("/api/health");
+  assert.equal(on.response.status, 200);
+  assert.equal(on.body.serverMode, true);
+});
+
+test("query API actions route to server handlers", async () => {
+  resetEnv({
+    SERVER_MODE: "true",
+    PARSER_PROVIDER: "mock",
+    LLM_PROVIDER: "mock",
+  });
+  const health = await call("?action=api.health");
+  assert.equal(health.response.status, 200);
+  assert.equal(health.body.serverMode, true);
+
+  const parsed = await call("?action=api.parse", pdfRequest([41, 42, 43]));
+  assert.equal(parsed.response.status, 202);
+  const analyzed = await call("?action=api.analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ docId: parsed.body.docId, mode: "quick" }),
+  });
+  assert.equal(analyzed.response.status, 200);
+  assert.equal(analyzed.body.model, "mock-llm");
+});
+
+test("analyze accepts client-provided markdown when docs map misses", async () => {
+  resetEnv({ SERVER_MODE: "true", LLM_PROVIDER: "mock" });
+  const analyzed = await call("/api/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      docId: "provided-doc",
+      mode: "quick",
+      markdown: "# Provided Paper\n\n## Abstract\nThis is a provided markdown.",
+    }),
+  });
+  assert.equal(analyzed.response.status, 200);
+  assert.equal(analyzed.body.ok, true);
+  assert.equal(analyzed.body.model, "mock-llm");
+});
+
 test("production rejects mock providers", async () => {
   resetEnv({
     SERVER_MODE: "true",

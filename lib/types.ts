@@ -86,7 +86,7 @@ export type ParsedDoc = {
   fileName: string;
   fileSize: number;
   pages: number | null;
-  mode: "flash" | "token" | "demo";
+  mode: "flash" | "token" | "demo" | "docmind";
   markdown: string;
   parsedAt: number;
   sourceUrl?: string;

@@ -1,0 +1,58 @@
+{
+  "round": 2,
+  "capturedAt": "2026-11-19T08:44:08.555Z",
+  "url": "https://paper-tutor-b4bndympaz4.qoder.zone/",
+  "actionId": "084796e0-b1ca-47d3-84e2-579d0ec81373",
+  "fix": "GetDocParserResult now sends required LayoutNum + LayoutStepSize and paginates layouts; full markdown assembled from markdownContent in reading order (replaced findMarkdown which only returned the first block).",
+  "upload": { "file": "one-page.pdf", "bytes": 1945, "pages": 1 },
+  "serverMode": true,
+  "result": "success",
+  "analysisChain": {
+    "parse": {
+      "route": "/functions/v1/app?action=api.parse",
+      "httpStatus": 202,
+      "elapsedMs": 8350,
+      "ok": true,
+      "cached": false,
+      "pages": 1,
+      "markdownChars": 889,
+      "docId": "cd9012285f0660eed4a6558ddf276842e46e7cde7c4fbe75b856373033c451f0",
+      "markdownHead": "# Scaling Laws for Tiny Transformers\n\n# Abstract\n\nWe study how validation loss scales with model size and training tokens for small transformer language models. Across 40 runs we find a smooth power-law relationship between loss, parameters, and dataset size.\n\n# 1 Introduction\n\nLarge language models"
+    },
+    "analyze": {
+      "route": "/functions/v1/app?action=api.analyze",
+      "httpStatus": 200,
+      "elapsedMs": 31762,
+      "ok": true,
+      "cached": false,
+      "model": "qwen-plus",
+      "usage": { "prompt_tokens": 576, "completion_tokens": 1423, "total_tokens": 1999, "cached_tokens": 0 }
+    },
+    "chainElapsedMs": 40114,
+    "citations": { "verified": 8, "total": 8, "coverage": "8/8" },
+    "retried": false,
+    "analysisRunOnce": true
+  },
+  "automaticHelpBootstrap": {
+    "note": "After the analysis succeeded, the UI automatically bootstrapped help. In server mode (LLM_PROVIDER=dashscope) the help provider is llm-help, so these are ADDITIONAL paid qwen-plus calls beyond the single analysis chain. They were not separately suppressed. help API does not return token usage, so their cost is estimated by maxTokens upper bound.",
+    "budgetGuarded": false,
+    "calls": [
+      { "route": "api.help.predict", "count": 1, "provider": "llm-help", "httpStatus": 200, "elapsedMs": 11175, "maxTokens": 1200 },
+      { "route": "api.help.answer", "count": 5, "provider": "llm-help", "httpStatus": 200, "elapsedMsEach": [2656, 4295, 3164, 3846, 3803], "maxTokensEach": 800 }
+    ],
+    "totalLlmCallsIncludingAnalyze": 7
+  },
+  "totalFunctionRequests": 8,
+  "cost": {
+    "pricingSource": "docs/cost.md (qwen-plus 0-128K non-thinking: input 0.8 CNY/M, output 2.0 CNY/M; DocMind 0.02 CNY/page base, 3000 pages/month free)",
+    "analyzeCny": 0.0033068,
+    "analyzeCnyNote": "precise from usage: 576*0.8/1e6 + 1423*2.0/1e6",
+    "helpBootstrapCnyUpperBound": 0.012,
+    "helpBootstrapCnyNote": "estimate only; help API returns no usage. Upper bound by maxTokens (predict 1200 out + 5x800 out) plus small inputs.",
+    "docmindPagesParsed": 1,
+    "docmindCny": "0 within monthly free tier (2 pages parsed this session across rounds 1-2), otherwise <= 0.02",
+    "totalEstimatedCny": "~0.01-0.02 (well under DAILY_BUDGET_CNY=1)",
+    "actualBillSubjectToAliyun": true
+  },
+  "screenshot": "unavailable (in-app browser viewport hidden, NATIVE_BROWSER_VIEWPORT_UNAVAILABLE); full accessibility snapshot captured as structural evidence (result view, 8/8 citations)"
+}

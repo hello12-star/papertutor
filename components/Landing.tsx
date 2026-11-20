@@ -26,6 +26,7 @@ type Props = {
   demoLoadingId: string | null;
   demoError: string | null;
   onOpenDemo: (paper: DemoPaperMeta) => void;
+  serverMode: boolean;
   hasKey: boolean;
   hasMineruToken: boolean;
 };
@@ -59,6 +60,7 @@ export function Landing({
   demoLoadingId,
   demoError,
   onOpenDemo,
+  serverMode,
   hasKey,
   hasMineruToken,
 }: Props) {
@@ -200,10 +202,14 @@ export function Landing({
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <Badge variant="secondary" className="font-normal">
-                ≤ 10MB / 20 页 · 免 Token
+                {serverMode ? "≤ 20MB · 服务端 DocMind" : "≤ 10MB / 20 页 · 免 Token"}
               </Badge>
               <Badge variant="secondary" className="font-normal">
-                {hasMineruToken ? "MinerU 精准模式已开启" : "保留章节结构"}
+                {serverMode
+                  ? "DOCMIND + QWEN-PLUS"
+                  : hasMineruToken
+                    ? "MinerU 精准模式已开启"
+                    : "保留章节结构"}
               </Badge>
               <Badge variant="secondary" className="font-normal">
                 同文件本地缓存
@@ -220,21 +226,23 @@ export function Landing({
             <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-secondary/60 px-4 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium">
-                  {hasKey ? "模型已配置" : "还差一个模型 Key"}
+                  {serverMode ? "服务端模型已启用" : hasKey ? "模型已配置" : "还差一个模型 Key"}
                 </p>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {hasKey
-                    ? "Key 只存在本地浏览器，分析时直接调用你选择的模型"
-                    : "Bring Your Own Key：DeepSeek / 百炼 / SiliconFlow / OpenRouter"}
+                  {serverMode
+                    ? "DocMind + qwen-plus，无需配置 Key"
+                    : hasKey
+                      ? "Key 只存在本地浏览器，分析时直接调用你选择的模型"
+                      : "Bring Your Own Key：DeepSeek / 百炼 / SiliconFlow / OpenRouter"}
                 </p>
               </div>
               <Button
                 type="button"
-                variant={hasKey ? "ghost" : "default"}
+                variant={serverMode || hasKey ? "ghost" : "default"}
                 size="sm"
                 onClick={onOpenSettings}
               >
-                {hasKey ? "修改" : "去配置"}
+                {serverMode ? "设置" : hasKey ? "修改" : "去配置"}
                 <ArrowRight />
               </Button>
             </div>

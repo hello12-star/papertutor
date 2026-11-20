@@ -304,7 +304,11 @@ export function ResultView({
               </Badge>
             ) : (
               <Badge variant="secondary" className="font-normal">
-                {doc.mode === "token" ? "MinerU 精准解析" : "MinerU 轻量解析"}
+                {doc.mode === "docmind"
+                  ? "服务端 DocMind 解析"
+                  : doc.mode === "token"
+                    ? "MinerU 精准解析"
+                    : "MinerU 轻量解析"}
               </Badge>
             )}
             {doc.mode === "demo" && demoLoadMs != null && (
@@ -1239,7 +1243,7 @@ function RawMarkdown({
         description={
           demo
             ? "示例只保留引用校验所需的原文片段，不包含论文全文；完整论文请通过上方 arXiv 链接查看。"
-            : "这是 MinerU 从 PDF 还原出的结构化文本，所有引用都在这里做逐条比对。"
+            : "这是解析服务从 PDF 还原出的结构化文本，所有引用都在这里做逐条比对。"
         }
         helpId="result.original"
       />

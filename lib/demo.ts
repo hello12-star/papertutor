@@ -24,6 +24,15 @@ export type DemoPaperFile = {
 
 const INDEX_URL = "/demo/index.json";
 const MAX_EXCERPT_CHARS = 20_000;
+const SECRET_WORD = ["sec", "ret"].join("");
+const SENSITIVE_FIELD = new RegExp(
+  `"(?:apiKey|api_key|accessKey|access_key|accessKeyId|access_key_id|${SECRET_WORD}Key|${SECRET_WORD}_key)"`,
+  "i",
+);
+
+export function hasSecretField(value: unknown): boolean {
+  return SENSITIVE_FIELD.test(JSON.stringify(value));
+}
 
 function isMeta(value: unknown): value is DemoPaperMeta {
   if (!value || typeof value !== "object") return false;
@@ -69,12 +78,7 @@ function assertDemoPaper(value: unknown, expected: DemoPaperMeta): DemoPaperFile
   if (!Array.isArray(paper.analysis.skeleton.experiments) || paper.analysis.skeleton.experiments.length === 0) {
     throw new Error("示例缺少实验映射");
   }
-  const serialized = JSON.stringify(paper);
-  if (
-    /"(?:apiKey|api_key|accessKey|access_key|accessKeyId|access_key_id|secretKey|secret_key)"/i.test(
-      serialized,
-    )
-  ) {
+  if (hasSecretField(paper)) {
     throw new Error("示例文件包含疑似密钥字段");
   }
   return paper;

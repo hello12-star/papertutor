@@ -22,6 +22,12 @@ import { countPdfPages, formatBytes, sha256Hex } from "@/lib/files";
 import { LlmError } from "@/lib/llm";
 import { verifyModel } from "@/lib/model-check";
 import { parseWithMineru, MineruError, type MineruMode } from "@/lib/mineru";
+import {
+  analyzeWithServer,
+  getServerHealth,
+  parseWithServer,
+  ServerApiError,
+} from "@/lib/server-api";
 import { loadSettings, saveSettings, type Settings } from "@/lib/settings";
 import type { Analysis, AppError, CitationStats, ParsedDoc, Phase } from "@/lib/types";
 
@@ -37,7 +43,7 @@ function initialPhases(): Phase[] {
     },
     {
       key: "parse",
-      label: "MinerU 重构 Markdown",
+      label: "解析 PDF",
       detail: "保留章节层级、公式与表格",
       status: "pending",
     },
@@ -78,6 +84,7 @@ export default function App() {
   const [demoLoadingId, setDemoLoadingId] = useState<string | null>(null);
   const [demoError, setDemoError] = useState<string | null>(null);
   const [demoLoadMs, setDemoLoadMs] = useState<number | null>(null);
+  const [serverMode, setServerMode] = useState(false);
   const [parsing, setParsing] = useState(false);
   const runRef = useRef(0);
   const lastFileRef = useRef<File | null>(null);
@@ -102,6 +109,14 @@ export default function App() {
         if (controller.signal.aborted) return;
         setDemoError(error instanceof Error ? error.message : String(error));
       });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void getServerHealth(controller.signal).then((health) => {
+      if (health.serverMode) setServerMode(true);
+    });
     return () => controller.abort();
   }, []);
 
@@ -250,7 +265,7 @@ export default function App() {
     updatePhase("read", { status: "done", detail: `${formatBytes(target.fileSize)}${target.pages ? ` · ${target.pages} 页` : ""}` });
     updatePhase("parse", {
       status: "done",
-      detail: `${target.markdown.length.toLocaleString()} 字符 · ${target.mode === "token" ? "精准模式" : "轻量模式"}`,
+      detail: `${target.markdown.length.toLocaleString()} 字符 · ${target.mode === "docmind" ? "DocMind" : target.mode === "token" ? "精准模式" : "轻量模式"}`,
     });
   };
 
@@ -398,6 +413,64 @@ export default function App() {
       status: "done",
       detail: `${formatBytes(file.size)}${pages ? ` · ${pages} 页` : ""}`,
     });
+
+    if (serverMode) {
+      updatePhase("parse", {
+        status: "active",
+        detail: "上传到服务端，DocMind 解析中…",
+      });
+      try {
+        const parsed = await parseWithServer(file, buffer, { signal: lease.signal });
+        if (stale()) return;
+        const serverDoc: ParsedDoc = {
+          hash: parsed.docId || hash,
+          fileName: file.name,
+          fileSize: file.size,
+          pages: parsed.pages ?? pages,
+          mode: "docmind",
+          markdown: parsed.markdown,
+          parsedAt: Date.now(),
+        };
+        setDoc(serverDoc);
+        void cacheDoc(serverDoc);
+        updatePhase("parse", {
+          status: "done",
+          detail: `DocMind · ${serverDoc.pages ?? "?"} 页${parsed.cached ? " · 缓存命中" : ""}`,
+        });
+        updatePhase("quickview", {
+          status: "active",
+          detail: "qwen-plus 生成速览与骨架…",
+        });
+        const analyzed = await analyzeWithServer(
+          {
+            docId: serverDoc.hash,
+            markdown: serverDoc.markdown,
+            fileName: serverDoc.fileName,
+            mode: "quick",
+          },
+          { signal: lease.signal },
+        );
+        if (stale()) return;
+        const citationStats = verifyCitations(serverDoc.markdown, analyzed.analysis);
+        setAnalysis(analyzed.analysis);
+        setStats(citationStats);
+        updatePhase("quickview", {
+          status: "done",
+          detail: `服务端生成 · ${analyzed.model}${analyzed.cached ? " · 缓存命中" : ""}`,
+        });
+        updatePhase("skeleton", {
+          status: "done",
+          detail: `${citationStats.verified}/${citationStats.total} 条引用已在原文中定位`,
+        });
+        setGenerating(false);
+        setView("result");
+        return;
+      } catch (error) {
+        if (stale()) return;
+        failWith(mapServerError(error), "working");
+        return;
+      }
+    }
 
     const applyDoc = async (target: ParsedDoc) => {
       if (stale()) return;
@@ -584,7 +657,7 @@ export default function App() {
   };
 
   return (
-    <div className="relative min-h-dvh">
+    <div className="relative min-h-dvh" data-server-mode={serverMode ? "true" : "false"}>
       <header className="sticky top-0 z-40 border-b border-border/80 bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
           <button type="button" onClick={resetToLanding} className="flex items-center gap-2.5 text-left">
@@ -606,7 +679,7 @@ export default function App() {
               aria-hidden
             />
             <span className="hidden text-[11px] text-muted-foreground sm:inline">
-              {hasKey ? settings.model : "未配置模型"}
+              {serverMode ? "服务端模式" : hasKey ? settings.model : "未配置模型"}
             </span>
             <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(true)}>
               <Settings2 />
@@ -627,6 +700,7 @@ export default function App() {
               demoLoadingId={demoLoadingId}
               demoError={demoError}
               onOpenDemo={(paper) => void openDemo(paper)}
+              serverMode={serverMode}
               hasKey={hasKey}
               hasMineruToken={hasMineruToken}
             />
@@ -687,6 +761,43 @@ export default function App() {
       />
     </div>
   );
+
+  function mapServerError(error: unknown): AppError {
+    if (error instanceof ServerApiError) {
+      const titles: Record<string, string> = {
+        DOCMIND_NOT_CONFIGURED: "服务端解析未配置",
+        DOCMIND_AUTH_FAILED: "DocMind 授权失败",
+        DOCMIND_UPLOAD_FAILED: "DocMind 文件上传失败",
+        DOCMIND_SUBMIT_FAILED: "DocMind 提交失败",
+        DOCMIND_STATUS_FAILED: "DocMind 解析失败",
+        DOCMIND_TIMEOUT: "DocMind 解析超时",
+        DOCMIND_EMPTY_RESULT: "DocMind 没有返回 Markdown",
+        LLM_NOT_CONFIGURED: "服务端模型未配置",
+        LLM_UPSTREAM_ERROR: "服务端模型调用失败",
+        INVALID_ANALYSIS_JSON: "模型返回结构不完整",
+        DAILY_BUDGET_EXCEEDED: "今日预算已用尽",
+        SERVICE_DISABLED: "服务暂时关闭",
+      };
+      return {
+        title: titles[error.code] ?? "服务端处理失败",
+        message: error.message,
+        hint:
+          error.status === 402
+            ? "今天的 1 元预算已用尽，请明天再试或调整预算。"
+            : error.status === 503
+              ? "服务端未就绪或已关闭；可稍后重试。"
+              : "可以重试；如果持续失败，请把错误码反馈给开发者。",
+        kind: error.status === 402 ? "limit" : error.status === 503 ? "network" : "parse",
+        raw: error.detail,
+      };
+    }
+    return {
+      title: "服务端处理失败",
+      message: error instanceof Error ? error.message : String(error),
+      hint: "检查网络后重试；如果持续失败，请反馈。",
+      kind: "network",
+    };
+  }
 
   function mapMineruError(error: unknown): AppError {
     if (error instanceof MineruError) {

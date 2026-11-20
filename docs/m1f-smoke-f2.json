@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-11-18T15:48:11.026Z",
+  "url": "https://paper-tutor-b4bndympaz4.qoder.zone/",
+  "upload": {
+    "file": "one-page.pdf",
+    "bytes": 1613
+  },
+  "serverMode": true,
+  "result": "failed",
+  "parse": null,
+  "analyze": null,
+  "citations": null,
+  "cost": null,
+  "errors": [
+    "Failed to load resource: the server responded with a status of 502 ()",
+    "result page did not appear"
+  ],
+  "failureText": "P\nPaperTutor\nML PAPER COMPANION\n服务端模式\n设置\n\nWORKING\n\n正在把这篇论文重构成学习材料\n\n解析和生成都在你的浏览器里直接调用，请不要关闭这个页面。\n\none-page.pdf\n\n2 KB · 已用 1 秒\n\n流程已中断\n8%\n\n读取 PDF\n\n2 KB · 1 页\n\n解析 PDF\n\n上传到服务端，DocMind 解析中…\n\n生成速览卡\n\n提炼核心问题、贡献、前置知识与阅读路径\n\n拆解论证骨架\n\n问题 → 洞察 → 模块 → 实验 → 局限，逐条匹配原文\n\nDocMind 提交失败\n\nDocMind 网络请求失败：Invalid URL: 'https:///'\n\n可以重试；如果持续失败，请把错误码反馈给开发者。\n\n重试\n换一篇论文\n\n解析结果会缓存在本机；生成分析时会把论文 Markdown 发送给你配置的模型服务。\n\nPaperTutor · 把论文重构成能跟着学的材料\n解析结果缓存在本机 · 模型 Key 不上传"
+}

@@ -1,8 +1,12 @@
+import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 const FIXTURE = path.resolve("e2e/fixtures/ten-pages.pdf");
 const DEMO_HASH = "demo-attention-v1";
+const DEMO_PAPER = JSON.parse(
+  fs.readFileSync("public/demo/attention.json", "utf8"),
+);
 
 async function mockMineru(page: Page, mode: "failure" | "running") {
   await page.route("**/functions/v1/app*", async (route) => {
@@ -51,9 +55,24 @@ async function mockMineru(page: Page, mode: "failure" | "running") {
   });
 }
 
-async function gotoLanding(page: Page) {
+async function gotoLanding(page: Page, serverMode = false) {
+  await page.route("**/functions/v1/app/api/health*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        serverMode,
+        serviceEnabled: serverMode,
+      }),
+    });
+  });
   await page.goto("/");
   await expect(page.getByText("没有 Key，也能先读 3 篇经典论文")).toBeVisible();
+  await expect(page.locator("[data-server-mode]")).toHaveAttribute(
+    "data-server-mode",
+    serverMode ? "true" : "false",
+  );
 }
 
 async function readProgress(page: Page) {
@@ -120,6 +139,55 @@ test("parse progress shows cancel and returns to upload", async ({ page }) => {
 
   await expect(page.getByText("没有 Key，也能先读 3 篇经典论文")).toBeVisible();
   await expect(page.getByText("正在把这篇论文重构成学习材料")).toHaveCount(0);
+});
+
+test("server mode uses /api/parse and /api/analyze without MinerU", async ({ page }) => {
+  const calls = { parse: 0, analyze: 0, mineru: 0 };
+  page.on("request", (request) => {
+    const url = request.url();
+    if (url.includes("action=api.parse")) calls.parse += 1;
+    if (url.includes("action=api.analyze")) calls.analyze += 1;
+    if (url.includes("mineru.submit")) calls.mineru += 1;
+  });
+  await page.route(/\/functions\/v1\/app\?action=api\.parse(?:&|$)/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        jobId: "server-job",
+        docId: DEMO_HASH,
+        status: "succeeded",
+        pages: 1,
+        markdown: DEMO_PAPER.doc.markdown,
+        cached: false,
+      }),
+    });
+  });
+  await page.route(/\/functions\/v1\/app\?action=api\.analyze(?:&|$)/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        jobId: "server-analysis",
+        status: "succeeded",
+        analysis: DEMO_PAPER.analysis,
+        model: "qwen-plus",
+        cached: false,
+      }),
+    });
+  });
+
+  await gotoLanding(page, true);
+  await page.locator('input[type="file"]').first().setInputFiles(FIXTURE);
+  await expect(page.getByText("30 秒速览：这篇论文值不值得深读")).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByText("服务端 DocMind 解析")).toBeVisible();
+  expect(calls.parse).toBe(1);
+  expect(calls.analyze).toBe(1);
+  expect(calls.mineru).toBe(0);
 });
 
 test("restores progress after reload and clears it with history delete", async ({ page }) => {

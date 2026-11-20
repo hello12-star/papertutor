@@ -1,4 +1,6 @@
 import { handleServerApi } from "./server-api.ts";
+import { serverModeEnabled } from "./providers/env.ts";
+import { serviceEnabled } from "./budget.ts";
 
 const MINERU = "https://mineru.net";
 
@@ -24,16 +26,23 @@ export async function handler(request: Request): Promise<Response> {
       return await handleServerApi(request, url, path);
     }
     if (action === "health") {
-      return json({ ok: true, service: "papertutor", ts: Date.now() });
+      return json({
+        ok: true,
+        service: "papertutor",
+        ts: Date.now(),
+        serverMode: serverModeEnabled(),
+        serviceEnabled: serviceEnabled(),
+      });
+    }
+    if (action.startsWith("api.")) {
+      const apiPath = `/api/${action.slice(4).replace(/\./g, "/")}`;
+      return await handleServerApi(request, url, apiPath);
     }
     if (action === "mineru.submit") {
       return await submitMineru(request, url);
     }
     if (action === "mineru.status") {
       return await pollMineru(request, url);
-    }
-    if (action.startsWith("debug.")) {
-      return await handleDebug(request, url, action);
     }
     return json({ ok: false, error: "unknown_action" }, 404);
   } catch (error) {
@@ -310,222 +319,4 @@ async function readZipEntry(buffer: ArrayBuffer, wanted: string): Promise<string
     offset += 46 + nameLength + extraLength + commentLength;
   }
   return null;
-}
-
-// ---------------------------------------------------------------------------
-// Temporary M0 diagnostics. These endpoints are removed after the smoke test.
-// ---------------------------------------------------------------------------
-
-const DOCMIND_DEFAULT_ENDPOINT = "docmind-api.cn-hangzhou.aliyuncs.com";
-const DEBUG_SECRET_NAMES = [
-  "ALIYUN_ACCESS_KEY_ID",
-  "ALIYUN_ACCESS_KEY_SECRET",
-  "DOCMIND_ENDPOINT",
-  "DASHSCOPE_API_KEY",
-];
-
-function envValue(name: string): string {
-  const deno = (globalThis as any).Deno;
-  if (deno?.env?.get) {
-    try {
-      return deno.env.get(name) ?? "";
-    } catch {
-      return "";
-    }
-  }
-  const proc = (globalThis as any).process;
-  return proc?.env?.[name] ?? "";
-}
-
-function debugOriginAllowed(request: Request): boolean {
-  const origin = request.headers.get("origin") ?? "";
-  if (!origin) return false;
-  try {
-    const host = new URL(origin).hostname;
-    return host === "127.0.0.1" || host === "localhost" || host.endsWith(".qoder.zone");
-  } catch {
-    return false;
-  }
-}
-
-function trimLongStrings(value: unknown, depth = 0): unknown {
-  if (typeof value === "string") {
-    return value.length > 1500 ? `${value.slice(0, 1500)}…[truncated ${value.length - 1500} chars]` : value;
-  }
-  if (depth > 6) return "[depth]";
-  if (Array.isArray(value)) return value.slice(0, 20).map((item) => trimLongStrings(item, depth + 1));
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, trimLongStrings(item, depth + 1)]),
-    );
-  }
-  return value;
-}
-
-function percentEncode(value: string): string {
-  return encodeURIComponent(value).replace(/[!'()*]/g, (char) =>
-    `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
-  );
-}
-
-async function signedDocmindPost(
-  params: Record<string, string>,
-): Promise<{ url: string; body: string }> {
-  const accessKeyId = envValue("ALIYUN_ACCESS_KEY_ID");
-  const accessKeySecret = envValue("ALIYUN_ACCESS_KEY_SECRET");
-  if (!accessKeyId || !accessKeySecret) throw new Error("missing_aliyun_secrets");
-  const endpoint = (envValue("DOCMIND_ENDPOINT") || DOCMIND_DEFAULT_ENDPOINT)
-    .replace(/^https?:\/\//, "")
-    .replace(/\/.*$/, "");
-
-  const all: Record<string, string> = {
-    ...params,
-    AccessKeyId: accessKeyId,
-    Format: "JSON",
-    SignatureMethod: "HMAC-SHA1",
-    SignatureNonce: crypto.randomUUID(),
-    SignatureVersion: "1.0",
-    Timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
-    Version: "2022-07-11",
-  };
-  const canonical = Object.keys(all)
-    .sort()
-    .map((key) => `${percentEncode(key)}=${percentEncode(String(all[key]))}`)
-    .join("&");
-  const stringToSign = `POST&%2F&${percentEncode(canonical)}`;
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(`${accessKeySecret}&`),
-    { name: "HMAC", hash: "SHA-1" },
-    false,
-    ["sign"],
-  );
-  const signature = btoa(
-    String.fromCharCode(
-      ...new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(stringToSign))),
-    ),
-  );
-  return {
-    url: `https://${endpoint}/`,
-    body: `${canonical}&Signature=${percentEncode(signature)}`,
-  };
-}
-
-async function debugDocmind(url: URL): Promise<Response> {
-  const op = url.searchParams.get("op") ?? "submit";
-  const present = Object.fromEntries(
-    DEBUG_SECRET_NAMES.map((name) => [name, Boolean(envValue(name))]),
-  );
-  if (!present["ALIYUN_ACCESS_KEY_ID"] || !present["ALIYUN_ACCESS_KEY_SECRET"]) {
-    return json({ ok: false, error: "missing_aliyun_secrets", present }, 400);
-  }
-
-  let params: Record<string, string>;
-  if (op === "submit") {
-    const style = url.searchParams.get("format") ?? "repeat";
-    params = {
-      Action: "SubmitDocParserJob",
-      FileUrl: "https://cdn-mineru.openxlab.org.cn/demo/example.pdf",
-      FileName: "example.pdf",
-      PageIndex: "1-1",
-      FormulaEnhancement: "true",
-      ...(style === "flat" ? { OutputFormat: "markdown" } : { "OutputFormat.1": "markdown" }),
-    };
-  } else if (op === "status" || op === "result") {
-    const id = url.searchParams.get("id") ?? "";
-    if (!id) return json({ ok: false, error: "missing_id" }, 400);
-    params = {
-      Action: op === "status" ? "QueryDocParserStatus" : "GetDocParserResult",
-      Id: id,
-    };
-  } else {
-    return json({ ok: false, error: "unknown_op" }, 400);
-  }
-
-  try {
-    const signed = await signedDocmindPost(params);
-    const response = await fetch(signed.url, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: signed.body,
-      signal: AbortSignal.timeout(30_000),
-    });
-    const text = await response.text();
-    let data: unknown;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text.slice(0, 2000) };
-    }
-    return json({ ok: response.ok, op, http: response.status, data: trimLongStrings(data) });
-  } catch (error) {
-    return json({ ok: false, op, error: String(error) }, 502);
-  }
-}
-
-async function handleDebug(request: Request, url: URL, action: string): Promise<Response> {
-  if (!debugOriginAllowed(request)) {
-    return json({ ok: false, error: "forbidden_origin" }, 403);
-  }
-
-  if (action === "debug.env") {
-    return json({
-      ok: true,
-      present: Object.fromEntries(DEBUG_SECRET_NAMES.map((name) => [name, Boolean(envValue(name))])),
-    });
-  }
-
-  if (action === "debug.timeout") {
-    const requestedMs = Math.min(60_000, Math.max(0, Number(url.searchParams.get("ms") ?? 45_000)));
-    const started = Date.now();
-    await new Promise((resolve) => setTimeout(resolve, requestedMs));
-    return json({ ok: true, requestedMs, sleptMs: Date.now() - started });
-  }
-
-  if (action === "debug.stream") {
-    const chunks = Math.min(20, Math.max(1, Number(url.searchParams.get("chunks") ?? 10)));
-    const interval = Math.min(5000, Math.max(100, Number(url.searchParams.get("interval") ?? 1000)));
-    const encoder = new TextEncoder();
-    let sent = 0;
-    const stream = new ReadableStream({
-      start(controller) {
-        const tick = () => {
-          if (sent >= chunks) {
-            controller.close();
-            return;
-          }
-          sent += 1;
-          controller.enqueue(encoder.encode(`chunk ${sent}/${chunks} at ${new Date().toISOString()}\n`));
-          setTimeout(tick, interval);
-        };
-        tick();
-      },
-    });
-    return new Response(stream, {
-      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
-    });
-  }
-
-  if (action === "debug.fetch") {
-    const target = url.searchParams.get("target") ?? "dashscope";
-    const targets: Record<string, string> = {
-      dashscope: "https://dashscope.aliyuncs.com/compatible-mode/v1/models",
-      docmind: "https://docmind-api.cn-hangzhou.aliyuncs.com/",
-    };
-    const targetUrl = targets[target];
-    if (!targetUrl) return json({ ok: false, error: "unknown_target" }, 400);
-    try {
-      const response = await fetch(targetUrl, { signal: AbortSignal.timeout(15_000) });
-      const text = await response.text();
-      return json({ ok: true, target, http: response.status, body: text.slice(0, 500) });
-    } catch (error) {
-      return json({ ok: false, target, error: String(error) }, 502);
-    }
-  }
-
-  if (action === "debug.docmind") {
-    return await debugDocmind(url);
-  }
-
-  return json({ ok: false, error: "unknown_debug_action" }, 404);
 }

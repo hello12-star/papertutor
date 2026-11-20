@@ -55,7 +55,7 @@ export function buildExportMarkdown(doc: ParsedDoc, analysis: Analysis): string 
       `- 作者：${line(meta.authors) || "未识别"}`,
       `- 来源：${line(meta.venue) || "未识别"} · ${line(meta.year) || "未识别"}`,
       `- 页数：${doc.pages ?? "未知"}`,
-      `- 解析模式：${doc.mode === "demo" ? "预生成示例" : doc.mode === "token" ? "精准模式" : "轻量模式"}`,
+      `- 解析模式：${doc.mode === "demo" ? "预生成示例" : doc.mode === "docmind" ? "DocMind 服务端解析" : doc.mode === "token" ? "精准模式" : "轻量模式"}`,
       `- Paper Hash：${doc.hash}`,
       `- 导出日期：${exportedAt}`,
     ].join("\n"),
