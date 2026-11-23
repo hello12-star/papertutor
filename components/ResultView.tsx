@@ -42,6 +42,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HelpButton } from "@/components/HelpSystem";
+import { MarkdownMath } from "@/components/MarkdownMath";
+import { MathBlock } from "@/components/MathText";
 import { extractFormulaCards } from "@/lib/formulas";
 import {
   getProgress,
@@ -802,12 +804,10 @@ function FormulaCardsSection({
                   公式
                 </Badge>
               </div>
-              <pre className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 font-mono text-[12px] leading-6 break-words whitespace-pre-wrap">
-                {card.formula}
-              </pre>
-              <p className="mt-2 text-xs leading-5 break-words text-muted-foreground">
-                {card.meaning}
-              </p>
+              <MathBlock tex={card.formula} className="mt-3 rounded-lg bg-secondary/60 py-2" />
+              <div className="mt-2 text-xs leading-5 break-words text-muted-foreground">
+                <MarkdownMath text={card.meaning} />
+              </div>
               {card.latex && card.latex !== card.formula && (
                 <details className="mt-2">
                   <summary className="cursor-pointer text-[10px] text-muted-foreground">

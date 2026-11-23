@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MarkdownMath } from "@/components/MarkdownMath";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { findQuoteRange } from "@/lib/citations";
 import { cn } from "@/lib/utils";
@@ -95,10 +96,13 @@ export function OriginalSheet({
         )}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-6 text-foreground/85">
+          <div
+            data-testid="original-markdown"
+            className="whitespace-pre-wrap break-words font-mono text-[12px] leading-6 text-foreground/85"
+          >
             {range ? (
               <>
-                {markdown.slice(0, range.start)}
+                <MarkdownMath text={markdown.slice(0, range.start)} />
                 <mark
                   ref={markRef}
                   className={cn(
@@ -108,12 +112,12 @@ export function OriginalSheet({
                 >
                   {markdown.slice(range.start, range.end)}
                 </mark>
-                {markdown.slice(range.end)}
+                <MarkdownMath text={markdown.slice(range.end)} />
               </>
             ) : (
-              markdown
+              <MarkdownMath text={markdown} />
             )}
-          </pre>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

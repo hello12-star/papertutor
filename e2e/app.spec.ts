@@ -157,6 +157,7 @@ test("demo opens with pre-generated study tools", async ({ page }) => {
   await expect(page.getByText("预生成示例").first()).toBeVisible();
   await expect(page.getByText("方法流程图：从问题到验证")).toBeVisible();
   await expect(page.locator("#formulas article")).toHaveCount(3);
+  await expect(page.locator("#formulas .katex").first()).toBeVisible();
   await expect(page.locator("#selfTest")).toBeVisible();
   await expect(page.locator("#report")).toBeVisible();
 });
@@ -617,7 +618,9 @@ test.describe("M1-F5 lazy loading", () => {
     const nav = page.locator("nav:visible").filter({ has: page.getByRole("button", { name: /读原文/ }) });
     await nav.getByRole("button", { name: /读原文/ }).click();
     await expect(sheet).toBeVisible();
-    await expect(sheet.locator("pre")).toHaveText(DEMO_PAPER.doc.markdown);
+    const content = sheet.getByTestId("original-markdown");
+    await expect(content).toContainText("示例节选：仅保留引用校验所需的原文片段");
+    await expect(content).toContainText("The dominant sequence transduction models");
     await sheet.getByRole("button", { name: "Close", exact: true }).click();
     await expect(sheet).toBeHidden();
     await citation.click();
