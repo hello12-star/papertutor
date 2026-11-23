@@ -65,6 +65,7 @@ npx tsc --noEmit --allowImportingTsExtensions --strict \
 | `SERVICE_ENABLED` | `true` | `false` 时全站返回 503 |
 | `DAILY_BUDGET_CNY` | `1` | 每日 LLM 预算（元），耗尽返回 402 |
 | `MAX_UPLOAD_MB` | `20` | 单篇 PDF 上限 |
+| `ANALYSIS_MARKDOWN_CHARS` | `40000` | 送入分析模型的论文 Markdown 字符窗口（上限 120000） |
 
 密钥（仅服务端 Secret）：`ALIYUN_ACCESS_KEY_ID`、`ALIYUN_ACCESS_KEY_SECRET`、`DASHSCOPE_API_KEY`。
 
