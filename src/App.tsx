@@ -806,6 +806,7 @@ export default function App() {
               demoError={demoError}
               onOpenDemo={(paper) => void openDemo(paper)}
               serverMode={serverMode}
+              serverModeReady={serverModeReady}
               hasKey={hasKey}
               hasMineruToken={hasMineruToken}
             />

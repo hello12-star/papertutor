@@ -27,6 +27,7 @@ type Props = {
   demoError: string | null;
   onOpenDemo: (paper: DemoPaperMeta) => void;
   serverMode: boolean;
+  serverModeReady: boolean;
   hasKey: boolean;
   hasMineruToken: boolean;
 };
@@ -36,7 +37,7 @@ const STEPS = [
     icon: ScanText,
     index: "01",
     title: "解析成结构",
-    body: "MinerU 把 PDF 重构为保留章节结构的 Markdown；精准模式下公式与表格也能更好还原。",
+    body: "解析器把 PDF 重构为保留章节结构的 Markdown；公式与表格也能更好还原。",
   },
   {
     icon: ListChecks,
@@ -61,6 +62,7 @@ export function Landing({
   demoError,
   onOpenDemo,
   serverMode,
+  serverModeReady,
   hasKey,
   hasMineruToken,
 }: Props) {
@@ -81,9 +83,6 @@ export function Landing({
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
               StudyHack · ML 论文陪读
-            </Badge>
-            <Badge variant="outline" className="text-muted-foreground">
-              面向大二 / 大三初学者
             </Badge>
           </div>
 
@@ -226,14 +225,22 @@ export function Landing({
             <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-secondary/60 px-4 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium">
-                  {serverMode ? "服务端模型已启用" : hasKey ? "模型已配置" : "还差一个模型 Key"}
+                  {!serverModeReady
+                    ? "正在检测服务端能力…"
+                    : serverMode
+                      ? "服务端模型已启用"
+                      : hasKey
+                        ? "模型已配置"
+                        : "还差一个模型 Key"}
                 </p>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {serverMode
-                    ? "DocMind + qwen-plus，无需配置 Key"
-                    : hasKey
-                      ? "Key 只存在本地浏览器，分析时直接调用你选择的模型"
-                      : "Bring Your Own Key：DeepSeek / 百炼 / SiliconFlow / OpenRouter"}
+                  {!serverModeReady
+                    ? "连接站内解析与模型服务"
+                    : serverMode
+                      ? "DocMind + qwen-plus，无需配置 Key"
+                      : hasKey
+                        ? "Key 只存在本地浏览器，分析时直接调用你选择的模型"
+                        : "Bring Your Own Key：DeepSeek / 百炼 / SiliconFlow / OpenRouter"}
                 </p>
               </div>
               <Button
@@ -241,8 +248,9 @@ export function Landing({
                 variant={serverMode || hasKey ? "ghost" : "default"}
                 size="sm"
                 onClick={onOpenSettings}
+                disabled={!serverModeReady}
               >
-                {serverMode ? "设置" : hasKey ? "修改" : "去配置"}
+                {serverModeReady ? (serverMode ? "设置" : hasKey ? "修改" : "去配置") : "检测中"}
                 <ArrowRight />
               </Button>
             </div>
