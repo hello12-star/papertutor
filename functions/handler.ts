@@ -1,17 +1,9 @@
 import { handleServerApi } from "./server-api.ts";
 import { serverModeEnabled } from "./providers/env.ts";
 import { serviceEnabled } from "./budget.ts";
+import { json } from "./http.ts";
 
 const MINERU = "https://mineru.net";
-
-const JSON_HEADERS = {
-  "Content-Type": "application/json; charset=utf-8",
-  "Cache-Control": "no-store",
-};
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
-}
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

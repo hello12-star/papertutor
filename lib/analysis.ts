@@ -13,7 +13,7 @@ export function assembleAnalysis(quickview: QuickView, skeleton: Skeleton, markd
 }
 
 function normalizeForMatch(text: string): string {
-  return text
+  return String(text ?? "")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
     .toLowerCase()
@@ -61,12 +61,14 @@ export function verifyCitations(markdown: string, analysis: Analysis): CitationS
     unitsWithVerified: 0,
   };
   const { skeleton } = analysis;
+  const modules = Array.isArray(skeleton?.modules) ? skeleton.modules : [];
+  const experiments = Array.isArray(skeleton?.experiments) ? skeleton.experiments : [];
 
-  visit(skeleton.problem.citations, normalized, stats);
-  visit(skeleton.insight.citations, normalized, stats);
-  skeleton.modules.forEach((module) => visit(module.citations, normalized, stats));
-  skeleton.experiments.forEach((experiment) => visit(experiment.citations, normalized, stats));
-  visit(skeleton.limitations.citations, normalized, stats);
+  visit(skeleton?.problem?.citations, normalized, stats);
+  visit(skeleton?.insight?.citations, normalized, stats);
+  modules.forEach((module) => visit(module?.citations, normalized, stats));
+  experiments.forEach((experiment) => visit(experiment?.citations, normalized, stats));
+  visit(skeleton?.limitations?.citations, normalized, stats);
 
   return stats;
 }

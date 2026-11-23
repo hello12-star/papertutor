@@ -68,7 +68,8 @@ export function ProgressView({
 
   const value = percent(phases);
   const parsePhase = phases.find((phase) => phase.key === "parse");
-  const canCancel = !error && parsePhase?.status !== "done";
+  const canCancel = !error;
+  const cancelLabel = parsePhase?.status === "done" ? "取消生成" : "取消解析";
   const retryable = error
     ? error.kind === "parse" || error.kind === "network" || error.kind === "limit"
     : false;
@@ -85,7 +86,7 @@ export function ProgressView({
               正在把这篇论文重构成学习材料
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              解析和生成都在你的浏览器里直接调用，请不要关闭这个页面。
+              解析和生成可能需要几十秒，请不要关闭这个页面。
             </p>
           </div>
           {canCancel && (
@@ -96,7 +97,7 @@ export function ProgressView({
               onClick={onCancel}
               className="shrink-0 self-start"
             >
-              <X /> 取消解析
+              <X /> {cancelLabel}
             </Button>
           )}
         </div>

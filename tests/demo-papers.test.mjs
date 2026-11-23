@@ -68,3 +68,17 @@ test("every demo citation verifies against its excerpt", () => {
     );
   }
 });
+
+test("citation verification tolerates malformed cached analyses", () => {
+  const malformed = {
+    quickview: {},
+    skeleton: {
+      problem: { citations: [{ section: "1 Introduction" }] },
+      insight: {},
+      limitations: {},
+    },
+  };
+  const stats = verifyCitations("some markdown without that quote", malformed);
+  assert.equal(stats.total, 1);
+  assert.equal(stats.verified, 0);
+});

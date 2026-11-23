@@ -340,10 +340,6 @@ export function ResultView({
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-[10px] text-muted-foreground">学习工具</span>
-            <Button variant="outline" size="sm" disabled>
-              深度模式
-            </Button>
-            <HelpButton helpId="result.deepMode" />
             <Button variant="outline" size="sm" onClick={() => handleStep("selfTest")}>
               自测
             </Button>

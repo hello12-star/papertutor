@@ -29,5 +29,5 @@ export function getLlmProvider(): LlmProvider {
 }
 
 export function promptVersion(): string {
-  return readEnv("PROMPT_VERSION") || "v2";
+  return readEnv("PROMPT_VERSION") || "v3";
 }

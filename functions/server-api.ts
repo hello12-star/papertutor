@@ -31,6 +31,19 @@ const jobs = new Map<string, Job>();
 const docs = new Map<string, DocRecord>();
 const analyses = new Map<string, unknown>();
 
+const MAX_JOBS = 100;
+const MAX_DOCS = 16;
+const MAX_ANALYSES = 100;
+
+function remember<K, V>(map: Map<K, V>, key: K, value: V, max: number): void {
+  map.set(key, value);
+  while (map.size > max) {
+    const oldest = map.keys().next().value;
+    if (oldest === undefined) break;
+    map.delete(oldest);
+  }
+}
+
 export function parseCacheKey(sha256: string): string {
   return `parse:v1:${sha256}`;
 }
@@ -112,7 +125,7 @@ async function handleParse(request: Request): Promise<Response> {
 
   const cached = docs.get(sha256);
   if (cached) {
-    jobs.set(jobId, {
+    remember(jobs, jobId, {
       id: jobId,
       status: "succeeded",
       step: "done",
@@ -120,7 +133,7 @@ async function handleParse(request: Request): Promise<Response> {
       docId: sha256,
       createdAt: now,
       updatedAt: now,
-    });
+    }, MAX_JOBS);
     return json(
       {
         ok: true,
@@ -138,15 +151,15 @@ async function handleParse(request: Request): Promise<Response> {
 
   const provider = getParserProvider();
   const result = await provider.parse(input);
-  docs.set(sha256, {
+  remember(docs, sha256, {
     docId: sha256,
     markdown: result.markdown,
     pages: result.pages,
     meta: result.meta,
     fileName: input.fileName,
     createdAt: now,
-  });
-  jobs.set(jobId, {
+  }, MAX_DOCS);
+  remember(jobs, jobId, {
     id: jobId,
     status: "succeeded",
     step: "done",
@@ -154,7 +167,7 @@ async function handleParse(request: Request): Promise<Response> {
     docId: sha256,
     createdAt: now,
     updatedAt: now,
-  });
+  }, MAX_JOBS);
 
   return json(
     {
@@ -203,15 +216,32 @@ const SERVER_ANALYSIS_SCHEMA = `{
   }
 }`;
 
+function isCitation(value: any): boolean {
+  return (
+    Boolean(value) &&
+    typeof value.section === "string" &&
+    typeof value.quote === "string" &&
+    value.quote.trim().length > 0
+  );
+}
+
+function citationsValid(value: any): boolean {
+  return (
+    Boolean(value) &&
+    Array.isArray(value.citations) &&
+    value.citations.every(isCitation)
+  );
+}
+
 function assertAnalysisShape(value: unknown): void {
   const analysis = value as any;
   const q = analysis?.quickview;
   const s = analysis?.skeleton;
-  const modules = Array.isArray(s?.modules) ? s.modules : [];
-  const experiments = Array.isArray(s?.experiments) ? s.experiments : [];
   const valid =
     q &&
     q.meta &&
+    typeof q.meta === "object" &&
+    !Array.isArray(q.meta) &&
     typeof q.coreQuestion === "string" &&
     typeof q.coreContribution === "string" &&
     typeof q.methodSummary === "string" &&
@@ -219,19 +249,18 @@ function assertAnalysisShape(value: unknown): void {
     q.readingPath &&
     Array.isArray(q.readingPath.first) &&
     Array.isArray(q.readingPath.skip) &&
-    s?.problem &&
+    citationsValid(s?.problem) &&
     typeof s.problem.summary === "string" &&
     Array.isArray(s.problem.limitations) &&
-    Array.isArray(s.problem.citations) &&
-    s.insight &&
+    citationsValid(s?.insight) &&
     typeof s.insight.summary === "string" &&
-    Array.isArray(s.insight.citations) &&
-    modules.every((module: any) => module && Array.isArray(module.citations)) &&
-    experiments.every((experiment: any) => experiment && Array.isArray(experiment.citations)) &&
-    s.limitations &&
+    Array.isArray(s?.modules) &&
+    s.modules.every((module: unknown) => citationsValid(module)) &&
+    Array.isArray(s?.experiments) &&
+    s.experiments.every((experiment: unknown) => citationsValid(experiment)) &&
+    citationsValid(s?.limitations) &&
     Array.isArray(s.limitations.stated) &&
-    Array.isArray(s.limitations.inferred) &&
-    Array.isArray(s.limitations.citations);
+    Array.isArray(s.limitations.inferred);
   if (!valid) {
     throw new ApiError(
       "INVALID_ANALYSIS_JSON",
@@ -270,6 +299,23 @@ async function handleAnalyze(request: Request): Promise<Response> {
 
   const provider = getLlmProvider();
   const version = promptVersion();
+  const modelHint =
+    provider.id === "mock" ? "" : readEnv("LLM_MODEL") || "qwen-plus";
+  if (modelHint) {
+    const hitKey = analysisCacheKey(docId, mode, version, modelHint);
+    const hit = analyses.get(hitKey);
+    if (hit) {
+      return json({
+        ok: true,
+        jobId: crypto.randomUUID(),
+        status: "succeeded",
+        analysis: hit,
+        model: modelHint,
+        cacheKey: hitKey,
+        cached: true,
+      });
+    }
+  }
   const result = await provider.complete({
     messages: [
       {
@@ -303,11 +349,10 @@ async function handleAnalyze(request: Request): Promise<Response> {
 
   const parsed = extractJsonObject(result.text);
   assertAnalysisShape(parsed);
-  analyses.set(cacheKey, parsed);
-
+  remember(analyses, cacheKey, parsed, MAX_ANALYSES);
   const jobId = crypto.randomUUID();
   const now = Date.now();
-  jobs.set(jobId, {
+  remember(jobs, jobId, {
     id: jobId,
     status: "succeeded",
     step: "done",
@@ -315,7 +360,7 @@ async function handleAnalyze(request: Request): Promise<Response> {
     docId,
     createdAt: now,
     updatedAt: now,
-  });
+  }, MAX_JOBS);
 
   return json({
     ok: true,

@@ -136,6 +136,7 @@ async function callDocMind(
     version?: string;
     method?: "GET" | "POST";
     errorCode?: ProviderErrorCode;
+    timeoutMs?: number;
   } = {},
 ): Promise<any> {
   const errorCode = options.errorCode ?? "DOCMIND_STATUS_FAILED";
@@ -155,7 +156,7 @@ async function callDocMind(
           ? { "Content-Type": "application/x-www-form-urlencoded" }
           : { Accept: "application/json" },
       body: signed.body,
-    });
+    }, options.timeoutMs ?? REQUEST_TIMEOUT_MS);
   } catch (error) {
     if (error instanceof ProviderError) throw error;
     throw new ProviderError(
@@ -297,7 +298,13 @@ async function waitForStatus(id: string): Promise<{ pages?: number; status: any 
   const deadline = Date.now() + TOTAL_TIMEOUT_MS;
   let delay = POLL_INITIAL_MS;
   while (Date.now() < deadline) {
-    const body = await callDocMind("QueryDocParserStatus", { Id: id });
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    const body = await callDocMind(
+      "QueryDocParserStatus",
+      { Id: id },
+      { timeoutMs: Math.min(REQUEST_TIMEOUT_MS, Math.max(1_000, remaining)) },
+    );
     const data = body?.Data ?? body;
     const status = String(data?.Status ?? "").toLowerCase();
     if (status === "fail" || status === "failed") {
@@ -317,9 +324,9 @@ async function waitForStatus(id: string): Promise<{ pages?: number; status: any 
       );
       return { pages: Number.isFinite(pages) && pages > 0 ? pages : undefined, status: data };
     }
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) break;
-    await sleep(Math.min(delay, remaining));
+    const left = deadline - Date.now();
+    if (left <= 0) break;
+    await sleep(Math.min(delay, left));
     delay = Math.min(POLL_MAX_MS, Math.round(delay * 1.7));
   }
   throw new ProviderError(
