@@ -49,6 +49,21 @@ function apiError(response: Response, body: any, fallback: string): ServerApiErr
   );
 }
 
+export const ANALYSIS_RETRY_MARKDOWN_CHARS = 20_000;
+
+export function isTransientServerError(error: unknown): boolean {
+  if (error && typeof error === "object" && (error as { name?: string }).name === "AbortError") {
+    return false;
+  }
+  if (error instanceof ServerApiError) {
+    if (error.code === "SERVICE_DISABLED" || error.status === 402 || error.status === 429) {
+      return false;
+    }
+    return error.status === 502 || error.status === 503 || error.status === 504;
+  }
+  return error instanceof TypeError;
+}
+
 export async function getServerHealth(signal?: AbortSignal): Promise<ServerHealth> {
   try {
     const response = await fetch(HEALTH, {

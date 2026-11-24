@@ -20,10 +20,14 @@ import { countPdfPages, formatBytes, sha256Hex } from "@/lib/files";
 import { LlmError } from "@/lib/llm";
 import { parseWithMineru, MineruError, type MineruMode } from "@/lib/mineru";
 import {
+  ANALYSIS_RETRY_MARKDOWN_CHARS,
   analyzeWithServer,
   getServerHealth,
+  isTransientServerError,
   parseWithServer,
   ServerApiError,
+  type ServerAnalyzeResult,
+  type ServerParseResult,
 } from "@/lib/server-api";
 import { loadSettings, saveSettings, type Settings } from "@/lib/settings";
 import type { Analysis, AppError, CitationStats, ParsedDoc, Phase } from "@/lib/types";
@@ -33,6 +37,8 @@ const ResultView = lazy(() => import("@/components/ResultView").then((module) =>
 const SettingsDialog = lazy(() => import("@/components/SettingsDialog").then((module) => ({ default: module.SettingsDialog })));
 
 type View = "landing" | "working" | "result" | "restoring";
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function writeHash(hash: string, replace = false): void {
   if (window.location.hash === hash) return;
@@ -516,7 +522,19 @@ export default function App() {
         detail: "上传到服务端，DocMind 解析中…",
       });
       try {
-        const parsed = await parseWithServer(file, buffer, { signal: lease.signal });
+        let parsed: ServerParseResult;
+        try {
+          parsed = await parseWithServer(file, buffer, { signal: lease.signal });
+        } catch (error) {
+          if (stale() || !isTransientServerError(error)) throw error;
+          updatePhase("parse", {
+            status: "active",
+            detail: "解析超时，正在自动重试…",
+          });
+          await delay(1200);
+          if (stale()) return;
+          parsed = await parseWithServer(file, buffer, { signal: lease.signal });
+        }
         if (stale()) return;
         const serverDoc: ParsedDoc = {
           hash: parsed.docId || hash,
@@ -537,15 +555,35 @@ export default function App() {
           status: "active",
           detail: "qwen-plus 生成速览与骨架…",
         });
-        const analyzed = await analyzeWithServer(
-          {
-            docId: serverDoc.hash,
-            markdown: serverDoc.markdown,
-            fileName: serverDoc.fileName,
-            mode: "quick",
-          },
-          { signal: lease.signal },
-        );
+        let analyzed: ServerAnalyzeResult;
+        try {
+          analyzed = await analyzeWithServer(
+            {
+              docId: serverDoc.hash,
+              markdown: serverDoc.markdown,
+              fileName: serverDoc.fileName,
+              mode: "quick",
+            },
+            { signal: lease.signal },
+          );
+        } catch (error) {
+          if (stale() || !isTransientServerError(error)) throw error;
+          updatePhase("quickview", {
+            status: "active",
+            detail: "生成超时，正在精简上下文自动重试…",
+          });
+          await delay(800);
+          if (stale()) return;
+          analyzed = await analyzeWithServer(
+            {
+              docId: serverDoc.hash,
+              markdown: serverDoc.markdown.slice(0, ANALYSIS_RETRY_MARKDOWN_CHARS),
+              fileName: serverDoc.fileName,
+              mode: "quick",
+            },
+            { signal: lease.signal },
+          );
+        }
         if (stale()) return;
         const citationStats = verifyCitations(serverDoc.markdown, analyzed.analysis);
         setAnalysis(analyzed.analysis);

@@ -2,9 +2,9 @@
 import { readEnv } from "./providers/env.ts";
 
 const DEFAULT_DAILY_BUDGET_CNY = 1;
-// ESTIMATED_ANALYSIS_COST_CNY 默认 0.05 只估算 LLM；DocMind 免费额度用尽后，
+// ESTIMATED_ANALYSIS_COST_CNY 默认 0.02 只估算 LLM；DocMind 免费额度用尽后，
 // 应调到约 0.6，否则应用层预算会低估真实花费。
-const DEFAULT_REQUEST_COST_CNY = 0.05;
+const DEFAULT_REQUEST_COST_CNY = 0.02;
 const DEFAULT_MAX_REQUESTS_PER_MINUTE = 20;
 
 export type BudgetConfig = {

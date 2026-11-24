@@ -53,8 +53,9 @@ export function analysisCacheKey(
   mode: string,
   version: string,
   model: string,
+  windowChars = 0,
 ): string {
-  return `analysis:v1:${docId}:${mode}:${version}:${model}`;
+  return `analysis:v1:${docId}:${mode}:${version}:${model}:w${windowChars}`;
 }
 
 async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
@@ -302,7 +303,7 @@ async function handleAnalyze(request: Request): Promise<Response> {
   const modelHint =
     provider.id === "mock" ? "" : readEnv("LLM_MODEL") || "qwen-plus";
   if (modelHint) {
-    const hitKey = analysisCacheKey(docId, mode, version, modelHint);
+    const hitKey = analysisCacheKey(docId, mode, version, modelHint, paperText.length);
     const hit = analyses.get(hitKey);
     if (hit) {
       return json({
@@ -332,7 +333,7 @@ async function handleAnalyze(request: Request): Promise<Response> {
     temperature: 0.2,
   });
 
-  const cacheKey = analysisCacheKey(docId, mode, version, result.model);
+  const cacheKey = analysisCacheKey(docId, mode, version, result.model, paperText.length);
   const cached = analyses.get(cacheKey);
   if (cached) {
     return json({

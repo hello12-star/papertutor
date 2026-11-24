@@ -203,7 +203,7 @@ test("mock parser and mock LLM run end to end with cache keys", async () => {
   assert.equal(analyzed.body.model, "mock-llm");
   assert.equal(
     analyzed.body.cacheKey,
-    `analysis:v1:${parsed.body.docId}:quick:v2:mock-llm`,
+    `analysis:v1:${parsed.body.docId}:quick:v2:mock-llm:w${parsed.body.markdown.length}`,
   );
   assert.ok(analyzed.body.analysis.quickview.meta.title.includes("QA 夹具"));
   assert.ok(Array.isArray(analyzed.body.analysis.skeleton.modules));
